@@ -1,6 +1,5 @@
 #!/bin/bash
-
-# need to add your email address and key to cloudflare below
+# Add cloudflare account details
 email="cloudaccount@email.com"
 key="cloudflareglobalapikey"
 domain="mydomain.com"
@@ -19,9 +18,6 @@ echo "Record ID: $record_id"
 update=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$record_id" \
   -H "X-Auth-Email: ${email}" -H "X-Auth-Key: ${key}" -H "Content-Type: application/json" \
   --data "{\"type\":\"A\",\"name\":\"$domain\",\"content\":\"$ip\"}")
-
-#  --data "{\"id\":\"$zone_id\",\"type\":\"A\",\"name\":\"$domain\",\"content\":\"$ip\"}")
-
 
 if [[ $update == *"\"success\":false"* ]]; then
     message="Failed with:\n$update"
