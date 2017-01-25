@@ -1,0 +1,6 @@
+[Unit]
+Description=Notify of external ip address change
+
+[Service]
+Type=simple
+ExecStart=/etc/systemd/system/networkMonitor.script

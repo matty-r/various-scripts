@@ -1,0 +1,10 @@
+[Unit]
+Description=Notify if there is a new external IP address, check every 15 mins
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=5min
+Unit=networkMonitor.service
+
+[Install]
+WantedBy=timers.target

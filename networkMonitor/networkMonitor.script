@@ -1,0 +1,25 @@
+#!/bin/sh
+PREVIOUSIP=$(head -n 1 /etc/systemd/system/networkMonitor.var)
+THISHOST=$(cat /etc/hostname)
+
+while [ "$REMOTEIP" = "" ]
+do
+REMOTEIP="$(curl icanhazip.com)"
+if [[ ! "$REMOTEIP" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]];
+then
+sleep 60;
+fi
+done
+
+if [[ "$REMOTEIP" != "$PREVIOUSIP" ]];
+then
+
+curl -s \
+  -F "token=YourApplicationAPItoken" \
+  -F "user=YourPushoverUserKey" \
+  -F "message=$THISHOST says $REMOTEIP" \
+  https://api.pushover.net/1/messages.json
+
+echo "$REMOTEIP" > /etc/systemd/system/networkMonitor.var
+
+fi
