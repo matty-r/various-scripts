@@ -1,4 +1,5 @@
-# various-scripts
+# Cloudflare-update
+Updates A record ip address within cloudflare
 
-1.  Name: Cloudflare-update
-    Description: Updates A record ip address within cloudflare
+# networkMonitor
+Sends Pushover notifications when your external IP address changes.
