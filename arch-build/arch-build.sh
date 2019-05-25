@@ -53,7 +53,7 @@ firstInstallStage(){
   chrootTime
 
   arch-chroot /mnt ./home/matt/arch-build.sh
-  driver
+  reboot
 }
 
 secondInstallStage(){
@@ -89,10 +89,8 @@ secondInstallStage(){
   echo "18. chroot: Create new user" > /dev/stderr
   sleep 2
   createUser
-  reboot
-#  exit
-#  echo "Rebooting. Re-run on boot"
-
+  echo "Rebooting. Re-run on boot"
+  exit
 }
 
 thirdInstallStage(){
@@ -196,7 +194,7 @@ formatParts(){
   fi
 
   if [ $ROOTMODE = "CREATE" ] || [ $ROOTMODE = "FORMAT" ]; then
-    mkfs.ext4 $ROOTPART
+    mkfs.ext4 -F -F $ROOTPART
   fi
 }
 
@@ -325,8 +323,7 @@ createUser(){
   echo "Set password for $USERNAME"
   passwd $USERNAME
   ###### enable wheel group for sudoers
-  sed -i "s/# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/" /etc/sudoers
-
+  sed -i "s/# %wheel ALL=(Af
   echo "THIRD" > /home/$USERNAME/installer.cfg
 
   ##SET OWNERSHIP OF SCRIPT FILES TO BE RUN AFTER REBOOT
