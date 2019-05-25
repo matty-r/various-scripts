@@ -8,8 +8,19 @@ driver(){
       echo "FIRST INSTALL STAGE"
       $(firstInstallStage)
       ;;
-  esac
-
+    "SECOND")
+      echo "SECOND INSTALL STAGE"
+      $(firstInstallStage)
+      ;;
+    "THIRD")
+      echo "THIRD INSTALL STAGE"
+      $(firstInstallStage)
+      ;;
+    "FOURTH")
+      echo "LAST INSTALL STAGE"
+      $(firstInstallStage)
+      ;;
+    esac
 }
 
 firstInstallStage(){
@@ -47,31 +58,51 @@ fourthInstallStage(){
   $(makeYay)
   $(installGoodies)
   $(readyFinalBoot)
+  #reboot
 }
 
 generateSettings(){
+  # create settings file
+  echo "" > ~/installsettings.cfg
+
   # REQUIRE USER MODIFICATION
-  USERNAME="matt"
-  HOSTNAME="arch-desktop"
+  $(exportSettings "USERNAME" "matt")
+  $(exportSettings "HOSTNAME" "arch-vm")
 
   # DISKS
   BOOTPART="/dev/sda1"
-  BOOTMODE="CREATE" #CREATE,FORMAT,LEAVE
+  $(exportSettings "BOOTPART" $BOOTPART)
+  $(exportSettings "BOOTMODE" "CREATE") #CREATE,FORMAT,LEAVE
   ROOTPART="/dev/sda2"
-  ROOTMODE="CREATE" #CREATE,FORMAT,LEAVE
+  $(exportSettings "ROOTPART" $ROOTPART)
+  $(exportSettings "ROOTMODE" "CREATE") #CREATE,FORMAT,LEAVE)
 
   # DO NOT EDIT THESE
   BOOTDEVICE=$(echo $BOOTPART | cut -f3,3 -d'/' | sed 's/[0-9]//g')
+  $(exportSettings "BOOTDEVICE" $BOOTDEVICE)
   ROOTDEVICE=$(echo $ROOTPART | cut -f3,3 -d'/' | sed 's/[0-9]//g')
-  SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
-  NETINT=$(ip link | grep "BROADCAST,MULTICAST,UP,LOWER_UP" | grep -oP '(?<=: ).*(?=: )')
+  $(exportSettings "ROOTDEVICE" $ROOTDEVICE)
+  #$(exportSettings "SCRIPTPATH" $( cd "$(dirname "$0")" ; pwd -P ) )
+  SCRIPTPATH=$( readlink -m $( type -p $0 ))
+  $(exportSettings "SCRIPTPATH" "$SCRIPTPATH")
+  $(exportSettings "NETINT" $(ip link | grep "BROADCAST,MULTICAST,UP,LOWER_UP" | grep -oP '(?<=: ).*(?=: )') )
 
-  echo "FIRST" >> ~/installer.cfg
+  echo "FIRST" > ~/installer.cfg
 }
 
 exportSettings(){
+  echo "Exporting $1=$2" > /dev/stderr
+  EXPORTPARAM="$1=$2"
   ## write all settings to a file on new root
-  echo "exportSettings .. nothing yet"
+  echo -e "$EXPORTPARAM" >> ~/installsettings.cfg
+}
+
+#retrieveSettings 'FILEPATH' 'SETTINGNAME'
+retrieveSettings(){
+  SETTINGSPATH=$1
+  SETTINGNAME=$2
+  SETTING=$(cat $1 | grep $2 | cut -f2,2 -d'=')
+  echo $SETTING
 }
 
 ###Update the system clock
@@ -81,19 +112,29 @@ systemClock(){
 
 ### PARTITION DISKS
 partDisks(){
-if [ $BOOTMODE = "CREATE" ] && [ $ROOTMODE = "CREATE" ]; then
-  if [ $BOOTDEVICE = $ROOTDEVICE ]; then
-    DEVICE=$(echo $BOOTPART | sed 's/[0-9]//g')
-    parted -s $DEVICE -- mklabel gpt \
-          mkpart primary fat32 0% 256MiB \
-          mkpart primary ext4 256MiB 100%
+  BOOTMODE=$(retrieveSettings ~/installsettings.cfg 'BOOTMODE')
+  ROOTMODE=$(retrieveSettings ~/installsettings.cfg 'ROOTMODE')
+  BOOTDEVICE=$(retrieveSettings ~/installsettings.cfg 'BOOTDEVICE')
+  ROOTDEVICE=$(retrieveSettings ~/installsettings.cfg 'ROOTDEVICE')
+
+  if [ $BOOTMODE = "CREATE" ] && [ $ROOTMODE = "CREATE" ]; then
+    if [ $BOOTDEVICE = $ROOTDEVICE ]; then
+      DEVICE=$(echo $BOOTPART | sed 's/[0-9]//g')
+      parted -s $DEVICE -- mklabel gpt \
+            mkpart primary fat32 0% 256MiB \
+            mkpart primary ext4 256MiB 100%
+    fi
   fi
-fi
 }
 
 ### FORMAT PARTITIONS
 #mkfs.ext4 /dev/sdX1
 formartParts(){
+  BOOTMODE=$(retrieveSettings ~/installsettings.cfg 'BOOTMODE')
+  ROOTMODE=$(retrieveSettings ~/installsettings.cfg 'ROOTMODE')
+  BOOTPART=$(retrieveSettings ~/installsettings.cfg 'BOOTPART')
+  ROOTPART=$(retrieveSettings ~/installsettings.cfg 'ROOTPART')
+
   if [ $BOOTMODE = "CREATE" ] || [ $BOOTMODE = "FORMAT" ]; then
     mkfs.fat -F32 $BOOTPART
   fi
@@ -109,6 +150,9 @@ formartParts(){
 
 ### Mount the file systems
 mountParts(){
+  BOOTDEVICE=$(retrieveSettings ~/installsettings.cfg 'BOOTDEVICE')
+  ROOTDEVICE=$(retrieveSettings ~/installsettings.cfg 'ROOTDEVICE')
+
   mount $ROOTDEVICE /mnt
   mkdir /mnt/boot
   mount $BOOTDEVICE /mnt/boot
@@ -127,6 +171,8 @@ makeFstab(){
 ### Change root into the new system:
 chrootTime(){
   echo "SECOND" >> ~/installer.cfg
+  USERNAME=$(retrieveSettings ~/installsettings.cfg 'USERNAME')
+  SCRIPTPATH=$(retrieveSettings ~/installsettings.cfg 'SCRIPTPATH')
 
   cp ~/installer.cfg /mnt/home/$USERNAME
   cp $SCRIPTPATH /mnt/home/$USERNAME
@@ -150,11 +196,14 @@ genLocales(){
 
 ### Create the hostname file:
 applyHostname(){
+  HOSTNAME=$(retrieveSettings ~/installsettings.cfg 'HOSTNAME')
   echo "$HOSTNAME" >> /etc/hostname
 }
 
 ### ADD HOSTS ENTRIES
 addHosts(){
+  HOSTNAME=$(retrieveSettings ~/installsettings.cfg 'HOSTNAME')
+
   echo "127.0.0.1     localhost" >> /etc/hosts
   echo "::1       localhost" >> /etc/hosts
   echo "127.0.1.1     $HOSTNAME.mydomain      $HOSTNAME" >> /etc/hosts
@@ -179,11 +228,15 @@ readyForBoot(){
 ### FIX REFIND CONFIG https://wiki.archlinux.org/index.php/REFInd#refind_linux.conf
 
 enableNetworkBoot(){
+  NETINT=$(retrieveSettings ~/installsettings.cfg 'NETINT')
+
   sudo systemctl enable dhcpcd@$NETINT.service
 }
 
 ####### add a user add to wheel group
 createUser(){
+  USERNAME=$(retrieveSettings ~/installsettings.cfg 'USERNAME')
+
   useradd -m $USERNAME
   gpasswd -a $USERNAME wheel
   ####### change user password
@@ -236,6 +289,5 @@ readyFinalBoot(){
 
 
 ###################################### reboot
-reboot
 
 #### Login as new user on reboot
