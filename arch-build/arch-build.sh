@@ -48,19 +48,39 @@ firstInstallStage(){
   echo "8.  GOING CHROOT. RE-EXECUTE SCRIPT IN /mnt/home/username DIRECTORY" > /dev/stderr
   sleep 2
   chrootTime
+
+  arch-chroot /mnt ./home/matt/arch-build.sh
   driver
 }
 
 secondInstallStage(){
+  echo "10. chroot: Set Time" > /dev/stderr
+  sleep 2
   setTime
+  echo "11. chroot: Generate locales" > /dev/stderr
+  sleep 2
   genLocales
+  echo "12. chroot: Apply HostName" > /dev/stderr
+  sleep 2
   applyHostname
+  echo "13. chroot: Add hosts file entries" > /dev/stderr
+  sleep 2
   addHosts
+  echo "14. chroot: Generate mkinitcpio" > /dev/stderr
+  sleep 2
   genInit
+  echo "15. chroot: Set root password" > /dev/stderr
+  sleep 2
   rootPassword
+  echo "16. chroot: Getting ready to boot" > /dev/stderr
+  sleep 2
   readyForBoot
   ###### Add step fix refind
+  echo "17. chroot: Fix network on boot" > /dev/stderr
+  sleep 2
   enableNetworkBoot
+  echo "18. chroot: Create new user" > /dev/stderr
+  sleep 2
   createUser
   exit
   echo "Rebooting. Re-run on boot"
@@ -83,8 +103,6 @@ fourthInstallStage(){
 }
 
 generateSettings(){
-  # create settings file
-  echo "" > ./installsettings.cfg
 
   # REQUIRE USER MODIFICATION
   $(exportSettings "USERNAME" "matt")
@@ -106,8 +124,13 @@ generateSettings(){
   #$(exportSettings "SCRIPTPATH" $( cd "$(dirname "$0")" ; pwd -P ) )
   SCRIPTPATH=$( readlink -m $( type -p $0 ))
   $(exportSettings "SCRIPTPATH" "$SCRIPTPATH")
+  SCRIPTROOT=${SCRIPTPATH%/*}
+  $(exportSettings )
   $(exportSettings "NETINT" $(ip link | grep "BROADCAST,MULTICAST,UP,LOWER_UP" | grep -oP '(?<=: ).*(?=: )') )
 
+  # create settings file
+  echo "" > ./installsettings.cfg
+  # CREATE PROGRESS FILE
   echo "FIRST" > ./installer.cfg
 }
 
