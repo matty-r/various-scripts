@@ -61,12 +61,15 @@ secondInstallStage(){
   ###### Add step fix refind
   enableNetworkBoot
   createUser
-  #reboot
+  exit
+  echo "Rebooting. Re-run on boot"
+  reboot
 }
 
 thirdInstallStage(){
   installNvidia
-  #reboot
+  echo "Rebooting. Re-run on boot"
+  reboot
 }
 
 fourthInstallStage(){
@@ -74,7 +77,8 @@ fourthInstallStage(){
   makeYay
   installGoodies
   readyFinalBoot
-  #reboot
+  echo "Rebooting. Re-run on boot"
+  reboot
 }
 
 generateSettings(){
@@ -279,12 +283,12 @@ createUser(){
   useradd -m $USERNAME
   gpasswd -a $USERNAME wheel
   ####### change user password
-  su - $USERNAME
-  passwd
-  logout
+  # su - $USERNAME
+  echo "Set password for $USERNAME"
+  passwd $USERNAME
   ###### enable wheel group for sudoers
   sed -i "s/# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/" /etc/sudoers
-  echo "THIRD" >> /home/$USERNAME/installer.cfg
+  echo "THIRD" > /home/$USERNAME/installer.cfg
 }
 
 ###################################### reboot
@@ -294,7 +298,7 @@ createUser(){
 ######################################## Install nvidia stuff
 installNvidia(){
   sudo pacman -S --noconfirm nvidia lib32-nvidia-utils lib32-vulkan-icd-loader vulkan-icd-loader nvidia-settings
-  echo "FOURTH" >> ./installer.cfg
+  echo "FOURTH" > ./installer.cfg
 }
 
 ###################################### reboot
