@@ -45,7 +45,7 @@ firstInstallStage(){
   echo "7. Making the FSTAB" > /dev/stderr
   sleep 10
   makeFstab
-  echo "8.  GOING CHROOT. RE-EXECUTE SCRIPT IN /MNT/HOME/USERNAME DIRECTORY" > /dev/stderr
+  echo "8.  GOING CHROOT. RE-EXECUTE SCRIPT IN /mnt/home/username DIRECTORY" > /dev/stderr
   sleep 2
   chrootTime
 }
@@ -65,15 +65,15 @@ secondInstallStage(){
 }
 
 thirdInstallStage(){
-  $(installNvidia)
+  installNvidia
   #reboot
 }
 
 fourthInstallStage(){
-  $(installDesktop)
-  $(makeYay)
-  $(installGoodies)
-  $(readyFinalBoot)
+  installDesktop
+  makeYay
+  installGoodies
+  readyFinalBoot
   #reboot
 }
 
@@ -177,10 +177,27 @@ mountParts(){
 
 ### Install the base packages
 setAussieMirrors(){
-
+cat <<EOF > /etc/pacman.d/mirrorlist
+##
+## Arch Linux repository mirrorlist
+## Filtered by mirror score from mirror status page
+## Generated on 2019-05-02
+##
+## Australia
+Server = http://archlinux.melbourneitmirror.net/\$repo/os/\$arch
+## Australia
+Server = http://archlinux.mirror.digitalpacific.com.au/\$repo/os/\$arch
+## Australia
+Server = http://ftp.iinet.net.au/pub/archlinux/\$repo/os/\$arch
+## Australia
+Server = http://ftp.swin.edu.au/archlinux/\$repo/os/\$arch
+## Australia
+Server = http://mirror.internode.on.net/pub/archlinux/\$repo/os/\$arch
+EOF
 }
 
 installBase(){
+  setAussieMirrors
   pacstrap /mnt base base-devel
 }
 
