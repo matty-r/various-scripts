@@ -3,64 +3,64 @@
 # Arch Linux INSTALL SCRIPT
 driver(){
   INSTALLSTAGE=$(cat ~/installer.cfg)
-  case INSTALLSTAGE in
+  case $INSTALLSTAGE in
     "FIRST"|"")
-      echo "FIRST INSTALL STAGE"
-      $(firstInstallStage)
+      echo "FIRST INSTALL STAGE" > /dev/stderr
+      firstInstallStage
       ;;
     "SECOND")
-      echo "SECOND INSTALL STAGE"
-      $(firstInstallStage)
+      echo "SECOND INSTALL STAGE" > /dev/stderr
+      secondInstallStage
       ;;
     "THIRD")
-      echo "THIRD INSTALL STAGE"
-      $(firstInstallStage)
+      echo "THIRD INSTALL STAGE" > /dev/stderr
+      thirdInstallStage
       ;;
     "FOURTH")
       echo "LAST INSTALL STAGE"
-      $(firstInstallStage)
+      fourthInstallStage
       ;;
     esac
 }
 
 firstInstallStage(){
   echo "1. Generate Settings" > /dev/stderr
-  sleep 10
-  $(generateSettings)
+  sleep 2
+  generateSettings
   echo "2. System Clock" > /dev/stderr
-  sleep 10
-  $(systemClock)
+  sleep 2
+  systemClock
   echo "3. Partition Disks" > /dev/stderr
-  sleep 10
-  $(partDisks)
+  sleep 2
+  partDisks
   echo "4. Format Partitions" > /dev/stderr
-  sleep 10
-  $(formartParts)
+  sleep 2
+  formatParts
   echo "5. Mount partitions" > /dev/stderr
-  sleep 10
-  $(mountParts)
+  sleep 2
+  mountParts
   echo "6. Install base packages" > /dev/stderr
-  sleep 10
-  $(installBase)
+  sleep 2
+  installBase
   echo "7. Making the FSTAB" > /dev/stderr
   sleep 10
-  $(makeFstab)
+  makeFstab
   echo "8.  GOING CHROOT. RE-EXECUTE SCRIPT IN /MNT/HOME/USERNAME DIRECTORY" > /dev/stderr
   sleep 2
-  $(chrootTime)
+  chrootTime
 }
 
 secondInstallStage(){
-  $(setTime)
-  $(genLocales)
-  $(applyHostname)
-  $(addHosts)
-  $(genInit)
-  $(rootPassword)
-  $(readyForBoot)
+  setTime
+  genLocales
+  applyHostname
+  addHosts
+  genInit
+  rootPassword
+  readyForBoot
   ###### Add step fix refind
-  $(enableNetworkBoot)
-  $(createUser)
+  enableNetworkBoot
+  createUser
   #reboot
 }
 
@@ -132,6 +132,7 @@ partDisks(){
   ROOTMODE=$(retrieveSettings ~/installsettings.cfg 'ROOTMODE')
   BOOTDEVICE=$(retrieveSettings ~/installsettings.cfg 'BOOTDEVICE')
   ROOTDEVICE=$(retrieveSettings ~/installsettings.cfg 'ROOTDEVICE')
+  BOOTPART=$(retrieveSettings ~/installsettings.cfg 'BOOTPART')
 
   if [ $BOOTMODE = "CREATE" ] && [ $ROOTMODE = "CREATE" ]; then
     if [ $BOOTDEVICE = $ROOTDEVICE ]; then
@@ -145,7 +146,7 @@ partDisks(){
 
 ### FORMAT PARTITIONS
 #mkfs.ext4 /dev/sdX1
-formartParts(){
+formatParts(){
   BOOTMODE=$(retrieveSettings ~/installsettings.cfg 'BOOTMODE')
   ROOTMODE=$(retrieveSettings ~/installsettings.cfg 'ROOTMODE')
   BOOTPART=$(retrieveSettings ~/installsettings.cfg 'BOOTPART')
@@ -166,15 +167,19 @@ formartParts(){
 
 ### Mount the file systems
 mountParts(){
-  BOOTDEVICE=$(retrieveSettings ~/installsettings.cfg 'BOOTDEVICE')
-  ROOTDEVICE=$(retrieveSettings ~/installsettings.cfg 'ROOTDEVICE')
+  BOOTPART=$(retrieveSettings ~/installsettings.cfg 'BOOTPART')
+  rOOTPART=$(retrieveSettings ~/installsettings.cfg 'rOOTPART')
 
-  mount $ROOTDEVICE /mnt
+  mount $ROOTPART /mnt
   mkdir /mnt/boot
-  mount $BOOTDEVICE /mnt/boot
+  mount $BOOTPART /mnt/boot
 }
 
 ### Install the base packages
+setAussieMirrors(){
+
+}
+
 installBase(){
   pacstrap /mnt base base-devel
 }
