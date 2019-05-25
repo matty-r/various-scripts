@@ -57,6 +57,10 @@ firstInstallStage(){
 }
 
 secondInstallStage(){
+  echo "10. chroot: Generate Settings" > /dev/stderr
+  sleep 2
+  generateSettings
+
   echo "10. chroot: Set Time" > /dev/stderr
   sleep 2
   setTime
@@ -85,15 +89,16 @@ secondInstallStage(){
   echo "18. chroot: Create new user" > /dev/stderr
   sleep 2
   createUser
-  exit
-  echo "Rebooting. Re-run on boot"
   reboot
+#  exit
+#  echo "Rebooting. Re-run on boot"
+
 }
 
 thirdInstallStage(){
   installNvidia
   echo "Rebooting. Re-run on boot"
-  reboot
+  sudo reboot
 }
 
 fourthInstallStage(){
@@ -102,7 +107,7 @@ fourthInstallStage(){
   installGoodies
   readyFinalBoot
   echo "Rebooting. Re-run on boot"
-  reboot
+  sudo reboot
 }
 
 generateSettings(){
@@ -202,14 +207,14 @@ formatParts(){
 ### Mount the file systems
 mountParts(){
   BOOTPART=$(retrieveSettings 'BOOTPART')
-  rOOTPART=$(retrieveSettings 'rOOTPART')
+  rOOTPART=$(retrieveSettings 'ROOTPART')
 
   mount $ROOTPART /mnt
   mkdir /mnt/boot
   mount $BOOTPART /mnt/boot
 }
 
-### Install the base packages
+
 setAussieMirrors(){
 cat <<EOF > /etc/pacman.d/mirrorlist
 ##
@@ -230,6 +235,7 @@ Server = http://mirror.internode.on.net/pub/archlinux/\$repo/os/\$arch
 EOF
 }
 
+### Install the base packages
 installBase(){
   setAussieMirrors
   pacstrap /mnt base base-devel
@@ -300,13 +306,12 @@ rootPassword(){
 readyForBoot(){
   pacman -S --noconfirm refind-efi intel-ucode
   refind-install
-}
 
-### FIX REFIND CONFIG https://wiki.archlinux.org/index.php/REFInd#refind_linux.conf
+  ### FIX REFIND CONFIG https://wiki.archlinux.org/index.php/REFInd#refind_linux.conf
+}
 
 enableNetworkBoot(){
   NETINT=$(retrieveSettings 'NETINT')
-
   sudo systemctl enable dhcpcd@$NETINT.service
 }
 
@@ -321,16 +326,25 @@ createUser(){
   passwd $USERNAME
   ###### enable wheel group for sudoers
   sed -i "s/# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/" /etc/sudoers
+
   echo "THIRD" > /home/$USERNAME/installer.cfg
+
+  ##SET OWNERSHIP OF SCRIPT FILES TO BE RUN AFTER REBOOT
+  SCRIPTROOT=$(retrieveSettings 'SCRIPTROOT')
+  chown $USERNAME:$USERNAME $SCRIPTROOT --recursive
 }
 
-###################################### reboot
 
-#### Login as new user on reboot
+enableMultilibPackages(){
+  sudo sed -i "s/#\[multilib\]/[multilib]/" /etc/pacman.conf
+  sudo sed -i '/[multilib]/a Include = \/etc\/pacman.d\/mirrorlist' /etc/pacman.conf
+  sudo pacman -Syyu
+}
 
 ######################################## Install nvidia stuff
 installNvidia(){
   SCRIPTROOT=$(retrieveSettings 'SCRIPTROOT')
+  enableMultilibPackages
 
   sudo pacman -S --noconfirm nvidia lib32-nvidia-utils lib32-vulkan-icd-loader vulkan-icd-loader nvidia-settings
   echo "FOURTH" > $SCRIPTROOT/installer.cfg
@@ -349,19 +363,19 @@ installDesktop(){
 makeYay(){
   git clone https://aur.archlinux.org/yay.git
   cd ~/yay
-  makepkg -sri
+  makepkg -sri --noconfirm
 }
 
 ######################################## Install the good stuff
 installGoodies(){
-  yay -S --noconfirm gparted ntfs-3g fwupd packagekit-qt5 htop nextcloud-client adapta-kde kvantum-theme-adapta papirus-icon-theme rsync remmina freerdp-git protonmail-bridge ttf-roboto virtualbox virtualbox-guest-iso xsane ttf-roboto-mono spotify libreoffice-fresh discord filezilla atom-editor-bin
+  yay -S --noconfirm gparted ntfs-3g fwupd packagekit-qt5 htop nextcloud-client adapta-kde kvantum-theme-adapta papirus-icon-theme rsync remmina freerdp-git protonmail-bridge ttf-roboto virtualbox virtualbox-guest-iso xsane ttf-roboto-mono spotify libreoffice-fresh discord filezilla atom-editor-bin vlc obs-studio
 }
 
 ############ enable network manager/disable dhcpcd
 readyFinalBoot(){
   SCRIPTROOT=$(retrieveSettings 'SCRIPTROOT')
-
-  sudo systemctl disable dhcpcd@interface.service
+  NETINT=$(retrieveSettings 'NETINT')
+  sudo systemctl disable dhcpcd@$NETINT.service
   sudo systemctl enable NetworkManager
   sudo systemctl enable sddm
   echo "DONE" >> $SCRIPTROOT/installer.cfg
