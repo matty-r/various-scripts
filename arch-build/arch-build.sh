@@ -2,7 +2,10 @@
 
 # Arch Linux INSTALL SCRIPT
 driver(){
-  INSTALLSTAGE=$(cat ./installer.cfg)
+  SCRIPTPATH=$( readlink -m $( type -p $0 ))
+  SCRIPTROOT=${SCRIPTPATH%/*}
+
+  INSTALLSTAGE=$(cat $SCRIPTROOT/installer.cfg)
   case $INSTALLSTAGE in
     "FIRST"|"")
       echo "FIRST INSTALL STAGE" > /dev/stderr
@@ -103,12 +106,17 @@ fourthInstallStage(){
 }
 
 generateSettings(){
+  # DO NOT EDIT THESE
+  SCRIPTPATH=$( readlink -m $( type -p $0 ))
+  SCRIPTROOT=${SCRIPTPATH%/*}
+  # create settings file
+  echo "" > $SCRIPTROOT/installsettings.cfg
+  # CREATE PROGRESS FILE
+  echo "FIRST" > $SCRIPTROOT/installer.cfg
 
   # REQUIRE USER MODIFICATION
   $(exportSettings "USERNAME" "matt")
   $(exportSettings "HOSTNAME" "arch-vm")
-
-  # DISKS
   BOOTPART="/dev/sda1"
   $(exportSettings "BOOTPART" $BOOTPART)
   $(exportSettings "BOOTMODE" "CREATE") #CREATE,FORMAT,LEAVE
@@ -121,31 +129,29 @@ generateSettings(){
   $(exportSettings "BOOTDEVICE" $BOOTDEVICE)
   ROOTDEVICE=$(echo $ROOTPART | cut -f3,3 -d'/' | sed 's/[0-9]//g')
   $(exportSettings "ROOTDEVICE" $ROOTDEVICE)
-  #$(exportSettings "SCRIPTPATH" $( cd "$(dirname "$0")" ; pwd -P ) )
-  SCRIPTPATH=$( readlink -m $( type -p $0 ))
   $(exportSettings "SCRIPTPATH" "$SCRIPTPATH")
-  SCRIPTROOT=${SCRIPTPATH%/*}
-  $(exportSettings )
+  $(exportSettings "SCRIPTROOT" "$SCRIPTROOT")
   $(exportSettings "NETINT" $(ip link | grep "BROADCAST,MULTICAST,UP,LOWER_UP" | grep -oP '(?<=: ).*(?=: )') )
-
-  # create settings file
-  echo "" > ./installsettings.cfg
-  # CREATE PROGRESS FILE
-  echo "FIRST" > ./installer.cfg
 }
 
 exportSettings(){
+  SCRIPTPATH=$( readlink -m $( type -p $0 ))
+  SCRIPTROOT=${SCRIPTPATH%/*}
+
   echo "Exporting $1=$2" > /dev/stderr
   EXPORTPARAM="$1=$2"
   ## write all settings to a file on new root
-  echo -e "$EXPORTPARAM" >> ./installsettings.cfg
+  echo -e "$EXPORTPARAM" >> $SCRIPTROOT/installsettings.cfg
 }
 
-#retrieveSettings 'FILEPATH' 'SETTINGNAME'
+#retrieveSettings 'SETTINGNAME'
 retrieveSettings(){
-  SETTINGSPATH=$1
-  SETTINGNAME=$2
-  SETTING=$(cat $1 | grep $2 | cut -f2,2 -d'=')
+  SCRIPTPATH=$( readlink -m $( type -p $0 ))
+  SCRIPTROOT=${SCRIPTPATH%/*}
+  SETTINGSPATH=$SCRIPTROOT"/installsettings.cfg"
+
+  SETTINGNAME=$1
+  SETTING=$(cat $SETTINGSPATH | grep $1 | cut -f2,2 -d'=')
   echo $SETTING
 }
 
@@ -156,11 +162,11 @@ systemClock(){
 
 ### PARTITION DISKS
 partDisks(){
-  BOOTMODE=$(retrieveSettings ./installsettings.cfg 'BOOTMODE')
-  ROOTMODE=$(retrieveSettings ./installsettings.cfg 'ROOTMODE')
-  BOOTDEVICE=$(retrieveSettings ./installsettings.cfg 'BOOTDEVICE')
-  ROOTDEVICE=$(retrieveSettings ./installsettings.cfg 'ROOTDEVICE')
-  BOOTPART=$(retrieveSettings ./installsettings.cfg 'BOOTPART')
+  BOOTMODE=$(retrieveSettings 'BOOTMODE')
+  ROOTMODE=$(retrieveSettings 'ROOTMODE')
+  BOOTDEVICE=$(retrieveSettings 'BOOTDEVICE')
+  ROOTDEVICE=$(retrieveSettings 'ROOTDEVICE')
+  BOOTPART=$(retrieveSettings 'BOOTPART')
 
   if [ $BOOTMODE = "CREATE" ] && [ $ROOTMODE = "CREATE" ]; then
     if [ $BOOTDEVICE = $ROOTDEVICE ]; then
@@ -175,10 +181,10 @@ partDisks(){
 ### FORMAT PARTITIONS
 #mkfs.ext4 /dev/sdX1
 formatParts(){
-  BOOTMODE=$(retrieveSettings ./installsettings.cfg 'BOOTMODE')
-  ROOTMODE=$(retrieveSettings ./installsettings.cfg 'ROOTMODE')
-  BOOTPART=$(retrieveSettings ./installsettings.cfg 'BOOTPART')
-  ROOTPART=$(retrieveSettings ./installsettings.cfg 'ROOTPART')
+  BOOTMODE=$(retrieveSettings 'BOOTMODE')
+  ROOTMODE=$(retrieveSettings 'ROOTMODE')
+  BOOTPART=$(retrieveSettings 'BOOTPART')
+  ROOTPART=$(retrieveSettings 'ROOTPART')
 
   if [ $BOOTMODE = "CREATE" ] || [ $BOOTMODE = "FORMAT" ]; then
     mkfs.fat -F32 $BOOTPART
@@ -195,8 +201,8 @@ formatParts(){
 
 ### Mount the file systems
 mountParts(){
-  BOOTPART=$(retrieveSettings ./installsettings.cfg 'BOOTPART')
-  rOOTPART=$(retrieveSettings ./installsettings.cfg 'rOOTPART')
+  BOOTPART=$(retrieveSettings 'BOOTPART')
+  rOOTPART=$(retrieveSettings 'rOOTPART')
 
   mount $ROOTPART /mnt
   mkdir /mnt/boot
@@ -236,14 +242,16 @@ makeFstab(){
 
 ### Change root into the new system:
 chrootTime(){
-  echo "SECOND" > ./installer.cfg
-  USERNAME=$(retrieveSettings ./installsettings.cfg 'USERNAME')
-  SCRIPTPATH=$(retrieveSettings ./installsettings.cfg 'SCRIPTPATH')
+  SCRIPTROOT=$(retrieveSettings 'SCRIPTROOT')
+
+  echo "SECOND" > $SCRIPTROOT/installer.cfg
+  USERNAME=$(retrieveSettings 'USERNAME')
+  SCRIPTPATH=$(retrieveSettings 'SCRIPTPATH')
 
   mkdir /mnt/home/$USERNAME
-  cp ./installer.cfg /mnt/home/$USERNAME
+  cp $SCRIPTROOT/installer.cfg /mnt/home/$USERNAME
   cp $SCRIPTPATH /mnt/home/$USERNAME
-  cp ./installsettings.cfg /mnt/home/$USERNAME
+  cp $SCRIPTROOT/installsettings.cfg /mnt/home/$USERNAME
 
   #Run script from crhoot
   #arch-chroot /mnt source /mnt/home/$USERNAME/arch-build.sh
@@ -265,13 +273,13 @@ genLocales(){
 
 ### Create the hostname file:
 applyHostname(){
-  HOSTNAME=$(retrieveSettings ./installsettings.cfg 'HOSTNAME')
+  HOSTNAME=$(retrieveSettings 'HOSTNAME')
   echo "$HOSTNAME" >> /etc/hostname
 }
 
 ### ADD HOSTS ENTRIES
 addHosts(){
-  HOSTNAME=$(retrieveSettings ./installsettings.cfg 'HOSTNAME')
+  HOSTNAME=$(retrieveSettings 'HOSTNAME')
 
   echo "127.0.0.1     localhost" >> /etc/hosts
   echo "::1       localhost" >> /etc/hosts
@@ -297,14 +305,14 @@ readyForBoot(){
 ### FIX REFIND CONFIG https://wiki.archlinux.org/index.php/REFInd#refind_linux.conf
 
 enableNetworkBoot(){
-  NETINT=$(retrieveSettings ./installsettings.cfg 'NETINT')
+  NETINT=$(retrieveSettings 'NETINT')
 
   sudo systemctl enable dhcpcd@$NETINT.service
 }
 
 ####### add a user add to wheel group
 createUser(){
-  USERNAME=$(retrieveSettings ./installsettings.cfg 'USERNAME')
+  USERNAME=$(retrieveSettings 'USERNAME')
   useradd -m $USERNAME
   gpasswd -a $USERNAME wheel
   ####### change user password
@@ -322,8 +330,10 @@ createUser(){
 
 ######################################## Install nvidia stuff
 installNvidia(){
+  SCRIPTROOT=$(retrieveSettings 'SCRIPTROOT')
+
   sudo pacman -S --noconfirm nvidia lib32-nvidia-utils lib32-vulkan-icd-loader vulkan-icd-loader nvidia-settings
-  echo "FOURTH" > ./installer.cfg
+  echo "FOURTH" > $SCRIPTROOT/installer.cfg
 }
 
 ###################################### reboot
@@ -349,10 +359,12 @@ installGoodies(){
 
 ############ enable network manager/disable dhcpcd
 readyFinalBoot(){
+  SCRIPTROOT=$(retrieveSettings 'SCRIPTROOT')
+
   sudo systemctl disable dhcpcd@interface.service
   sudo systemctl enable NetworkManager
   sudo systemctl enable sddm
-  echo "DONE" >> ./installer.cfg
+  echo "DONE" >> $SCRIPTROOT/installer.cfg
 }
 
 
