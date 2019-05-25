@@ -48,6 +48,7 @@ firstInstallStage(){
   echo "8.  GOING CHROOT. RE-EXECUTE SCRIPT IN /mnt/home/username DIRECTORY" > /dev/stderr
   sleep 2
   chrootTime
+  driver
 }
 
 secondInstallStage(){
@@ -221,7 +222,8 @@ chrootTime(){
   cp $SCRIPTPATH /mnt/home/$USERNAME
   cp ./installsettings.cfg /mnt/home/$USERNAME
 
-  arch-chroot /mnt
+  #Run script from crhoot
+  #arch-chroot /mnt source /mnt/home/$USERNAME/arch-build.sh
 }
 
 ### Set the time zone
