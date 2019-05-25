@@ -24,13 +24,29 @@ driver(){
 }
 
 firstInstallStage(){
+  echo "1. Generate Settings" > /dev/stderr
+  sleep 10
   $(generateSettings)
+  echo "2. System Clock" > /dev/stderr
+  sleep 10
   $(systemClock)
+  echo "3. Partition Disks" > /dev/stderr
+  sleep 10
   $(partDisks)
+  echo "4. Format Partitions" > /dev/stderr
+  sleep 10
   $(formartParts)
+  echo "5. Mount partitions" > /dev/stderr
+  sleep 10
   $(mountParts)
+  echo "6. Install base packages" > /dev/stderr
+  sleep 10
   $(installBase)
+  echo "7. Making the FSTAB" > /dev/stderr
+  sleep 10
   $(makeFstab)
+  echo "8.  GOING CHROOT. RE-EXECUTE SCRIPT IN /MNT/HOME/USERNAME DIRECTORY" > /dev/stderr
+  sleep 2
   $(chrootTime)
 }
 
@@ -174,6 +190,7 @@ chrootTime(){
   USERNAME=$(retrieveSettings ~/installsettings.cfg 'USERNAME')
   SCRIPTPATH=$(retrieveSettings ~/installsettings.cfg 'SCRIPTPATH')
 
+  mkdir /mnt/home/$USERNAME
   cp ~/installer.cfg /mnt/home/$USERNAME
   cp $SCRIPTPATH /mnt/home/$USERNAME
 
@@ -236,7 +253,6 @@ enableNetworkBoot(){
 ####### add a user add to wheel group
 createUser(){
   USERNAME=$(retrieveSettings ~/installsettings.cfg 'USERNAME')
-
   useradd -m $USERNAME
   gpasswd -a $USERNAME wheel
   ####### change user password
@@ -291,3 +307,5 @@ readyFinalBoot(){
 ###################################### reboot
 
 #### Login as new user on reboot
+
+driver
