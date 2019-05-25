@@ -2,7 +2,7 @@
 
 # Arch Linux INSTALL SCRIPT
 driver(){
-  INSTALLSTAGE=$(cat ~/installer.cfg)
+  INSTALLSTAGE=$(cat ./installer.cfg)
   case $INSTALLSTAGE in
     "FIRST"|"")
       echo "FIRST INSTALL STAGE" > /dev/stderr
@@ -43,7 +43,7 @@ firstInstallStage(){
   sleep 2
   installBase
   echo "7. Making the FSTAB" > /dev/stderr
-  sleep 10
+  sleep 2
   makeFstab
   echo "8.  GOING CHROOT. RE-EXECUTE SCRIPT IN /mnt/home/username DIRECTORY" > /dev/stderr
   sleep 2
@@ -79,7 +79,7 @@ fourthInstallStage(){
 
 generateSettings(){
   # create settings file
-  echo "" > ~/installsettings.cfg
+  echo "" > ./installsettings.cfg
 
   # REQUIRE USER MODIFICATION
   $(exportSettings "USERNAME" "matt")
@@ -103,14 +103,14 @@ generateSettings(){
   $(exportSettings "SCRIPTPATH" "$SCRIPTPATH")
   $(exportSettings "NETINT" $(ip link | grep "BROADCAST,MULTICAST,UP,LOWER_UP" | grep -oP '(?<=: ).*(?=: )') )
 
-  echo "FIRST" > ~/installer.cfg
+  echo "FIRST" > ./installer.cfg
 }
 
 exportSettings(){
   echo "Exporting $1=$2" > /dev/stderr
   EXPORTPARAM="$1=$2"
   ## write all settings to a file on new root
-  echo -e "$EXPORTPARAM" >> ~/installsettings.cfg
+  echo -e "$EXPORTPARAM" >> ./installsettings.cfg
 }
 
 #retrieveSettings 'FILEPATH' 'SETTINGNAME'
@@ -128,11 +128,11 @@ systemClock(){
 
 ### PARTITION DISKS
 partDisks(){
-  BOOTMODE=$(retrieveSettings ~/installsettings.cfg 'BOOTMODE')
-  ROOTMODE=$(retrieveSettings ~/installsettings.cfg 'ROOTMODE')
-  BOOTDEVICE=$(retrieveSettings ~/installsettings.cfg 'BOOTDEVICE')
-  ROOTDEVICE=$(retrieveSettings ~/installsettings.cfg 'ROOTDEVICE')
-  BOOTPART=$(retrieveSettings ~/installsettings.cfg 'BOOTPART')
+  BOOTMODE=$(retrieveSettings ./installsettings.cfg 'BOOTMODE')
+  ROOTMODE=$(retrieveSettings ./installsettings.cfg 'ROOTMODE')
+  BOOTDEVICE=$(retrieveSettings ./installsettings.cfg 'BOOTDEVICE')
+  ROOTDEVICE=$(retrieveSettings ./installsettings.cfg 'ROOTDEVICE')
+  BOOTPART=$(retrieveSettings ./installsettings.cfg 'BOOTPART')
 
   if [ $BOOTMODE = "CREATE" ] && [ $ROOTMODE = "CREATE" ]; then
     if [ $BOOTDEVICE = $ROOTDEVICE ]; then
@@ -147,10 +147,10 @@ partDisks(){
 ### FORMAT PARTITIONS
 #mkfs.ext4 /dev/sdX1
 formatParts(){
-  BOOTMODE=$(retrieveSettings ~/installsettings.cfg 'BOOTMODE')
-  ROOTMODE=$(retrieveSettings ~/installsettings.cfg 'ROOTMODE')
-  BOOTPART=$(retrieveSettings ~/installsettings.cfg 'BOOTPART')
-  ROOTPART=$(retrieveSettings ~/installsettings.cfg 'ROOTPART')
+  BOOTMODE=$(retrieveSettings ./installsettings.cfg 'BOOTMODE')
+  ROOTMODE=$(retrieveSettings ./installsettings.cfg 'ROOTMODE')
+  BOOTPART=$(retrieveSettings ./installsettings.cfg 'BOOTPART')
+  ROOTPART=$(retrieveSettings ./installsettings.cfg 'ROOTPART')
 
   if [ $BOOTMODE = "CREATE" ] || [ $BOOTMODE = "FORMAT" ]; then
     mkfs.fat -F32 $BOOTPART
@@ -167,8 +167,8 @@ formatParts(){
 
 ### Mount the file systems
 mountParts(){
-  BOOTPART=$(retrieveSettings ~/installsettings.cfg 'BOOTPART')
-  rOOTPART=$(retrieveSettings ~/installsettings.cfg 'rOOTPART')
+  BOOTPART=$(retrieveSettings ./installsettings.cfg 'BOOTPART')
+  rOOTPART=$(retrieveSettings ./installsettings.cfg 'rOOTPART')
 
   mount $ROOTPART /mnt
   mkdir /mnt/boot
@@ -208,13 +208,14 @@ makeFstab(){
 
 ### Change root into the new system:
 chrootTime(){
-  echo "SECOND" >> ~/installer.cfg
-  USERNAME=$(retrieveSettings ~/installsettings.cfg 'USERNAME')
-  SCRIPTPATH=$(retrieveSettings ~/installsettings.cfg 'SCRIPTPATH')
+  echo "SECOND" > ./installer.cfg
+  USERNAME=$(retrieveSettings ./installsettings.cfg 'USERNAME')
+  SCRIPTPATH=$(retrieveSettings ./installsettings.cfg 'SCRIPTPATH')
 
   mkdir /mnt/home/$USERNAME
-  cp ~/installer.cfg /mnt/home/$USERNAME
+  cp ./installer.cfg /mnt/home/$USERNAME
   cp $SCRIPTPATH /mnt/home/$USERNAME
+  cp ./installsettings.cfg /mnt/home/$USERNAME
 
   arch-chroot /mnt
 }
@@ -235,13 +236,13 @@ genLocales(){
 
 ### Create the hostname file:
 applyHostname(){
-  HOSTNAME=$(retrieveSettings ~/installsettings.cfg 'HOSTNAME')
+  HOSTNAME=$(retrieveSettings ./installsettings.cfg 'HOSTNAME')
   echo "$HOSTNAME" >> /etc/hostname
 }
 
 ### ADD HOSTS ENTRIES
 addHosts(){
-  HOSTNAME=$(retrieveSettings ~/installsettings.cfg 'HOSTNAME')
+  HOSTNAME=$(retrieveSettings ./installsettings.cfg 'HOSTNAME')
 
   echo "127.0.0.1     localhost" >> /etc/hosts
   echo "::1       localhost" >> /etc/hosts
@@ -260,21 +261,21 @@ rootPassword(){
 
 ### INSTALL BOOTLOADER AND MICROCODE
 readyForBoot(){
-  pacman -S refind-efi intel-ucode
+  pacman -S --noconfirm refind-efi intel-ucode
   refind-install
 }
 
 ### FIX REFIND CONFIG https://wiki.archlinux.org/index.php/REFInd#refind_linux.conf
 
 enableNetworkBoot(){
-  NETINT=$(retrieveSettings ~/installsettings.cfg 'NETINT')
+  NETINT=$(retrieveSettings ./installsettings.cfg 'NETINT')
 
   sudo systemctl enable dhcpcd@$NETINT.service
 }
 
 ####### add a user add to wheel group
 createUser(){
-  USERNAME=$(retrieveSettings ~/installsettings.cfg 'USERNAME')
+  USERNAME=$(retrieveSettings ./installsettings.cfg 'USERNAME')
   useradd -m $USERNAME
   gpasswd -a $USERNAME wheel
   ####### change user password
@@ -292,8 +293,8 @@ createUser(){
 
 ######################################## Install nvidia stuff
 installNvidia(){
-  sudo pacman -S nvidia lib32-nvidia-utils lib32-vulkan-icd-loader vulkan-icd-loader nvidia-settings
-  echo "FOURTH" >> ~/installer.cfg
+  sudo pacman -S --noconfirm nvidia lib32-nvidia-utils lib32-vulkan-icd-loader vulkan-icd-loader nvidia-settings
+  echo "FOURTH" >> ./installer.cfg
 }
 
 ###################################### reboot
@@ -302,7 +303,7 @@ installNvidia(){
 
 ######################################## Install the good stuff
 installDesktop(){
-  sudo pacman -S plasma kcalc konsole spectacle dolphin dolphin-plugins filelight kate kwalletmanager thunderbird steam ark ffmpegthumbs gwenview gimp kdeconnect kdf kdialog kfind firefox git gnome-keyring wget
+  sudo pacman -S --noconfirm plasma kcalc konsole spectacle dolphin dolphin-plugins filelight kate kwalletmanager thunderbird steam ark ffmpegthumbs gwenview gimp kdeconnect kdf kdialog kfind firefox git gnome-keyring wget
 }
 
 ###### make yay
@@ -314,7 +315,7 @@ makeYay(){
 
 ######################################## Install the good stuff
 installGoodies(){
-  yay -S gparted ntfs-3g fwupd packagekit-qt5 htop nextcloud-client adapta-kde kvantum-theme-adapta papirus-icon-theme rsync remmina freerdp-git protonmail-bridge ttf-roboto virtualbox virtualbox-guest-iso xsane ttf-roboto-mono spotify libreoffice-fresh discord filezilla atom-editor-bin
+  yay -S --noconfirm gparted ntfs-3g fwupd packagekit-qt5 htop nextcloud-client adapta-kde kvantum-theme-adapta papirus-icon-theme rsync remmina freerdp-git protonmail-bridge ttf-roboto virtualbox virtualbox-guest-iso xsane ttf-roboto-mono spotify libreoffice-fresh discord filezilla atom-editor-bin
 }
 
 ############ enable network manager/disable dhcpcd
@@ -322,7 +323,7 @@ readyFinalBoot(){
   sudo systemctl disable dhcpcd@interface.service
   sudo systemctl enable NetworkManager
   sudo systemctl enable sddm
-  echo "DONE" >> ~/installer.cfg
+  echo "DONE" >> ./installer.cfg
 }
 
 
