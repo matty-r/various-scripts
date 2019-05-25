@@ -323,7 +323,7 @@ createUser(){
   echo "Set password for $USERNAME"
   passwd $USERNAME
   ###### enable wheel group for sudoers
-  sed -i "s/# %wheel ALL=(Af
+  sed -i "s/# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/" /etc/sudoers
   echo "THIRD" > /home/$USERNAME/installer.cfg
 
   ##SET OWNERSHIP OF SCRIPT FILES TO BE RUN AFTER REBOOT
@@ -375,7 +375,7 @@ readyFinalBoot(){
   sudo systemctl disable dhcpcd@$NETINT.service
   sudo systemctl enable NetworkManager
   sudo systemctl enable sddm
-  echo "DONE" >> $SCRIPTROOT/installer.cfg
+  echo "DONE" > $SCRIPTROOT/installer.cfg
 }
 
 
