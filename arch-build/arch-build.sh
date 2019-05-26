@@ -1,6 +1,38 @@
 #!/bin/bash
 
 # Arch Linux INSTALL SCRIPT
+
+generateSettings(){
+  # DO NOT EDIT THESE
+  SCRIPTPATH=$( readlink -m $( type -p $0 ))
+  SCRIPTROOT=${SCRIPTPATH%/*}
+  # create settings file
+  echo "" > $SCRIPTROOT/installsettings.cfg
+  # CREATE PROGRESS FILE
+  echo "FIRST" > $SCRIPTROOT/installer.cfg
+
+  ########### MODiFY THESE ONES \/\/\/\/\/\/\/\/ ##################
+  $(exportSettings "USERNAME" "matt")  ## << CHANGE
+  $(exportSettings "HOSTNAME" "arch-vm") ## << CHANGE
+  BOOTPART="/dev/sda1"  ## << CHANGE BOOT PARTITION
+  $(exportSettings "BOOTPART" $BOOTPART)
+  $(exportSettings "BOOTMODE" "LEAVE") # << CREATE WILL DESTROY THE DISK, FORMAT WILL JUST FORMAT THE PARTITION, LEAVE WILL DO NOTHING
+  ROOTPART="/dev/sda2"  ## << CHANGE ROOT PARTITION
+  $(exportSettings "ROOTPART" $ROOTPART)
+  $(exportSettings "ROOTMODE" "FORMAT") # << CREATE WILL DESTROY THE DISK, FORMAT WILL JUST FORMAT THE PARTITION, LEAVE WILL DO NOTHING
+  ########### MODIFY THESE ONES ^^^^^^^^^^^^^^^^
+
+  # DO NOT EDIT THESE
+  BOOTDEVICE=$(echo $BOOTPART | cut -f3,3 -d'/' | sed 's/[0-9]//g')
+  $(exportSettings "BOOTDEVICE" $BOOTDEVICE)
+  ROOTDEVICE=$(echo $ROOTPART | cut -f3,3 -d'/' | sed 's/[0-9]//g')
+  $(exportSettings "ROOTDEVICE" $ROOTDEVICE)
+  $(exportSettings "SCRIPTPATH" "$SCRIPTPATH")
+  $(exportSettings "SCRIPTROOT" "$SCRIPTROOT")
+  $(exportSettings "NETINT" $(ip link | grep "BROADCAST,MULTICAST,UP,LOWER_UP" | grep -oP '(?<=: ).*(?=: )') )
+}
+
+
 driver(){
   SCRIPTPATH=$( readlink -m $( type -p $0 ))
   SCRIPTROOT=${SCRIPTPATH%/*}
@@ -20,7 +52,7 @@ driver(){
       thirdInstallStage
       ;;
     "FOURTH")
-      echo "LAST INSTALL STAGE"
+      echo "LAST INSTALL STAGE"  > /dev/stderr
       fourthInstallStage
       ;;
     esac
@@ -65,30 +97,39 @@ secondInstallStage(){
   echo "11. chroot: Set Time" > /dev/stderr
   sleep 2
   setTime
+
   echo "12. chroot: Generate locales" > /dev/stderr
   sleep 2
   genLocales
+
   echo "13. chroot: Apply HostName" > /dev/stderr
   sleep 2
   applyHostname
+
   echo "14. chroot: Add hosts file entries" > /dev/stderr
   sleep 2
   addHosts
+
   echo "15. chroot: Generate mkinitcpio" > /dev/stderr
   sleep 2
   genInit
+
   echo "16. chroot: Set root password" > /dev/stderr
   sleep 2
   rootPassword
+
   echo "17. chroot: Getting ready to boot" > /dev/stderr
   sleep 2
   readyForBoot
+
   echo "18. chroot: Fix network on boot" > /dev/stderr
   sleep 2
   enableNetworkBoot
+
   echo "19. chroot: Create new user" > /dev/stderr
   sleep 2
   createUser
+
   echo "Rebooting. Re-run on boot. Login as new user"
   sleep 10
   exit
@@ -98,6 +139,7 @@ thirdInstallStage(){
   echo "20. install nvidia stuff"
   sleep 2
   installNvidia
+
   echo "Rebooting. Re-run on boot. Login as new user"
   sleep 10
   sudo reboot
@@ -111,47 +153,22 @@ fourthInstallStage(){
   echo "22. Install KDE"
   sleep 2
   installDesktop
+
   echo "23. Install yay - AUR package manager"
   sleep 2
   makeYay
+
   echo "24. Install Goodies"
   sleep 2
   installGoodies
+
   echo "25. Readying final boot."
   sleep 2
   readyFinalBoot
+
   echo "Script done. You're good to go after reboot."
   sleep 10
   sudo reboot
-}
-
-generateSettings(){
-  # DO NOT EDIT THESE
-  SCRIPTPATH=$( readlink -m $( type -p $0 ))
-  SCRIPTROOT=${SCRIPTPATH%/*}
-  # create settings file
-  echo "" > $SCRIPTROOT/installsettings.cfg
-  # CREATE PROGRESS FILE
-  echo "FIRST" > $SCRIPTROOT/installer.cfg
-
-  # REQUIRE USER MODIFICATION
-  $(exportSettings "USERNAME" "matt")
-  $(exportSettings "HOSTNAME" "arch-vm")
-  BOOTPART="/dev/sda1"
-  $(exportSettings "BOOTPART" $BOOTPART)
-  $(exportSettings "BOOTMODE" "CREATE") #CREATE,FORMAT,LEAVE
-  ROOTPART="/dev/sda2"
-  $(exportSettings "ROOTPART" $ROOTPART)
-  $(exportSettings "ROOTMODE" "CREATE") #CREATE,FORMAT,LEAVE)
-
-  # DO NOT EDIT THESE
-  BOOTDEVICE=$(echo $BOOTPART | cut -f3,3 -d'/' | sed 's/[0-9]//g')
-  $(exportSettings "BOOTDEVICE" $BOOTDEVICE)
-  ROOTDEVICE=$(echo $ROOTPART | cut -f3,3 -d'/' | sed 's/[0-9]//g')
-  $(exportSettings "ROOTDEVICE" $ROOTDEVICE)
-  $(exportSettings "SCRIPTPATH" "$SCRIPTPATH")
-  $(exportSettings "SCRIPTROOT" "$SCRIPTROOT")
-  $(exportSettings "NETINT" $(ip link | grep "BROADCAST,MULTICAST,UP,LOWER_UP" | grep -oP '(?<=: ).*(?=: )') )
 }
 
 exportSettings(){
@@ -187,15 +204,40 @@ partDisks(){
   BOOTDEVICE=$(retrieveSettings 'BOOTDEVICE')
   ROOTDEVICE=$(retrieveSettings 'ROOTDEVICE')
   BOOTPART=$(retrieveSettings 'BOOTPART')
+  ROOTPART=$(retrieveSettings 'ROOTPART')
 
-  if [ $BOOTMODE = "CREATE" ] && [ $ROOTMODE = "CREATE" ]; then
-    if [ $BOOTDEVICE = $ROOTDEVICE ]; then
+#  if [ $BOOTMODE = "CREATE" ] && [ $ROOTMODE = "CREATE" ]; then
+#    if [ $BOOTDEVICE = $ROOTDEVICE ]; then
+#      DEVICE=$(echo $BOOTPART | sed 's/[0-9]//g')
+#      parted -s $DEVICE -- mklabel gpt \
+#            mkpart primary fat32 0% 256MiB \
+#            mkpart primary ext4 256MiB 100%
+#    fi
+#  fi
+
+  case $BOOTMODE in
+    "LEAVE"|"FORMAT")
+      echo "Leaving the boot partition..." > /dev/stderr
+      ;;
+    "CREATE")
+      echo "Boot partition will be created. Whole disk will be destroyed!" > /dev/stderr
       DEVICE=$(echo $BOOTPART | sed 's/[0-9]//g')
       parted -s $DEVICE -- mklabel gpt \
-            mkpart primary fat32 0% 256MiB \
-            mkpart primary ext4 256MiB 100%
-    fi
-  fi
+            mkpart primary fat32 0% 256MiB
+      ;;
+    esac
+
+    case $ROOTMODE in
+      "LEAVE"|"FORMAT")
+        echo "Leaving the root partition..." > /dev/stderr
+        ;;
+      "CREATE")
+        echo "Root partition will be created. Whole disk will be destroyed!" > /dev/stderr
+        DEVICE=$(echo $ROOTPART | sed 's/[0-9]//g')
+        parted -s $DEVICE -- mklabel gpt \
+              mkpart primary fat32 0% 100%
+        ;;
+    esac
 }
 
 ### FORMAT PARTITIONS
@@ -214,10 +256,6 @@ formatParts(){
     mkfs.ext4 -F -F $ROOTPART
   fi
 }
-
-### If you created a partition for swap, initialize it with mkswap:
-#mkswap /dev/sdX2
-#swapon /dev/sdX2
 
 ### Mount the file systems
 mountParts(){
@@ -404,7 +442,7 @@ makeYay(){
 
 ######################################## Install the good stuff
 installGoodies(){
-  yay -S --noconfirm gparted ntfs-3g fwupd packagekit-qt5 htop nextcloud-client adapta-kde kvantum-theme-adapta papirus-icon-theme rsync remmina freerdp-git protonmail-bridge ttf-roboto virtualbox virtualbox-guest-iso xsane ttf-roboto-mono spotify libreoffice-fresh discord filezilla atom-editor-bin vlc obs-studio
+  yay -S --noconfirm gparted ntfs-3g fwupd packagekit-qt5 htop nextcloud-client adapta-kde kvantum-theme-adapta papirus-icon-theme rsync remmina freerdp-git protonmail-bridge ttf-roboto virtualbox virtualbox-guest-iso xsane spotify libreoffice-fresh discord filezilla atom-editor-bin vlc obs-studio
 }
 
 ############ enable network manager/disable dhcpcd
