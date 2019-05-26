@@ -95,8 +95,9 @@ secondInstallStage(){
 
 thirdInstallStage(){
   installNvidia
-  echo "Rebooting. Re-run on boot"
-  sudo reboot
+  echo "Rebooting. Re-run on boot ---------commented out"
+  #sudo reboot
+
 }
 
 fourthInstallStage(){
@@ -104,8 +105,8 @@ fourthInstallStage(){
   makeYay
   installGoodies
   readyFinalBoot
-  echo "Rebooting. Re-run on boot"
-  sudo reboot
+  echo "Rebooting. Re-run on boot ---------commented out"
+  #sudo reboot
 }
 
 generateSettings(){
@@ -333,8 +334,9 @@ createUser(){
 
 
 enableMultilibPackages(){
+  sudo sed -i '/#\[multilib\]/a Include = \/etc\/pacman.d\/mirrorlist' /etc/pacman.conf
   sudo sed -i "s/#\[multilib\]/[multilib]/" /etc/pacman.conf
-  sudo sed -i '/[multilib]/a Include = \/etc\/pacman.d\/mirrorlist' /etc/pacman.conf
+
   sudo pacman -Syyu
 }
 
