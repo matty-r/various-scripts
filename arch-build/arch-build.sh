@@ -61,52 +61,63 @@ secondInstallStage(){
   sleep 2
   generateSettings
 
-  echo "10. chroot: Set Time" > /dev/stderr
+  echo "11. chroot: Set Time" > /dev/stderr
   sleep 2
   setTime
-  echo "11. chroot: Generate locales" > /dev/stderr
+  echo "12. chroot: Generate locales" > /dev/stderr
   sleep 2
   genLocales
-  echo "12. chroot: Apply HostName" > /dev/stderr
+  echo "13. chroot: Apply HostName" > /dev/stderr
   sleep 2
   applyHostname
-  echo "13. chroot: Add hosts file entries" > /dev/stderr
+  echo "14. chroot: Add hosts file entries" > /dev/stderr
   sleep 2
   addHosts
-  echo "14. chroot: Generate mkinitcpio" > /dev/stderr
+  echo "15. chroot: Generate mkinitcpio" > /dev/stderr
   sleep 2
   genInit
-  echo "15. chroot: Set root password" > /dev/stderr
+  echo "16. chroot: Set root password" > /dev/stderr
   sleep 2
   rootPassword
-  echo "16. chroot: Getting ready to boot" > /dev/stderr
+  echo "17. chroot: Getting ready to boot" > /dev/stderr
   sleep 2
   readyForBoot
   ###### Add step fix refind
-  echo "17. chroot: Fix network on boot" > /dev/stderr
+  echo "18. chroot: Fix network on boot" > /dev/stderr
   sleep 2
   enableNetworkBoot
-  echo "18. chroot: Create new user" > /dev/stderr
+  echo "19. chroot: Create new user" > /dev/stderr
   sleep 2
   createUser
-  echo "Rebooting. Re-run on boot"
+  echo "Rebooting. Re-run on boot. Login as new user"
+  sleep 10
   exit
 }
 
 thirdInstallStage(){
+  echo "20. install nvidia stuff"
+  sleep 2
   installNvidia
-  echo "Rebooting. Re-run on boot ---------commented out"
-  #sudo reboot
-
+  echo "Rebooting. Re-run on boot. Login as new user"
+  sudo reboot
 }
 
 fourthInstallStage(){
+  echo "21. Install KDE"
+  sleep 2
   installDesktop
+  echo "22. Install yay - AUR package manager"
+  sleep 2
   makeYay
+  echo "23. Install Goodies"
+  sleep 2
   installGoodies
+  echo "24. Readying final boot."
+  sleep 2
   readyFinalBoot
-  echo "Rebooting. Re-run on boot ---------commented out"
-  #sudo reboot
+  echo "Script done. You're good to go after reboot."
+  sleep 10
+  sudo reboot
 }
 
 generateSettings(){
