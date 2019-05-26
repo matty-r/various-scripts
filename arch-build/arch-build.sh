@@ -104,16 +104,20 @@ thirdInstallStage(){
 }
 
 fourthInstallStage(){
-  echo "21. Install KDE"
+  echo "21. : Generate Settings" > /dev/stderr
+  sleep 2
+  generateSettings
+  
+  echo "22. Install KDE"
   sleep 2
   installDesktop
-  echo "22. Install yay - AUR package manager"
+  echo "23. Install yay - AUR package manager"
   sleep 2
   makeYay
-  echo "23. Install Goodies"
+  echo "24. Install Goodies"
   sleep 2
   installGoodies
-  echo "24. Readying final boot."
+  echo "25. Readying final boot."
   sleep 2
   readyFinalBoot
   echo "Script done. You're good to go after reboot."
@@ -393,7 +397,7 @@ readyFinalBoot(){
   sudo systemctl enable sddm
   echo "DONE" > $SCRIPTROOT/installer.cfg
   ###### unset no password sudoers
-  sed -i "s/%wheel ALL=(ALL) NOPASSWD: ALL/# %wheel ALL=(ALL) NOPASSWD: ALL/" /etc/sudoers
+  sudo sed -i "s/%wheel ALL=(ALL) NOPASSWD: ALL/# %wheel ALL=(ALL) NOPASSWD: ALL/" /etc/sudoers
 }
 
 
