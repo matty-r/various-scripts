@@ -334,7 +334,7 @@ readyForBoot(){
 
 fixRefind(){
   ROOTPART=$(retrieveSettings 'ROOTPART')
-  ROOTUUID=$(blkid | grep $ROOTPART | grep -oP '(?<=: UUID=).*(?=" TYPE)')
+  ROOTUUID=$(blkid | grep $ROOTPART | grep -oP '(?<= UUID=").*(?=" TYPE)')
 
 cat <<EOF > /boot/refind_linux.conf
 "Boot with standard options"  "root=UUID=$ROOTUUID rw add_efi_memmap initrd=intel-ucode.img initrd=initramfs-linux.img"
@@ -399,6 +399,7 @@ makeYay(){
   git clone https://aur.archlinux.org/yay.git
   cd ~/yay
   makepkg -sri --noconfirm
+  cd ~
 }
 
 ######################################## Install the good stuff
