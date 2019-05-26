@@ -99,6 +99,7 @@ thirdInstallStage(){
   sleep 2
   installNvidia
   echo "Rebooting. Re-run on boot. Login as new user"
+  sleep 10
   sudo reboot
 }
 
@@ -336,6 +337,8 @@ createUser(){
   passwd $USERNAME
   ###### enable wheel group for sudoers
   sed -i "s/# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/" /etc/sudoers
+  ###### enable wheel group for sudoers - no password. TEMPORARY
+  sed -i "s/# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/" /etc/sudoers
   echo "THIRD" > /home/$USERNAME/installer.cfg
 
   ##SET OWNERSHIP OF SCRIPT FILES TO BE RUN AFTER REBOOT
@@ -389,6 +392,8 @@ readyFinalBoot(){
   sudo systemctl enable NetworkManager
   sudo systemctl enable sddm
   echo "DONE" > $SCRIPTROOT/installer.cfg
+  ###### unset no password sudoers
+  sed -i "s/%wheel ALL=(ALL) NOPASSWD: ALL/# %wheel ALL=(ALL) NOPASSWD: ALL/" /etc/sudoers
 }
 
 
