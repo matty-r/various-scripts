@@ -48,11 +48,12 @@ firstInstallStage(){
   echo "7. Making the FSTAB" > /dev/stderr
   sleep 2
   makeFstab
-  echo "8.  GOING CHROOT. RE-EXECUTE SCRIPT IN /mnt/home/username DIRECTORY" > /dev/stderr
+  echo "8. Setup chroot." > /dev/stderr
   sleep 2
   chrootTime
 
-  arch-chroot /mnt ./home/matt/arch-build.sh
+  USERNAME=$(retrieveSettings "USERNAME")
+  arch-chroot /mnt ./home/$USERNAME/arch-build.sh
   reboot
 }
 
@@ -82,7 +83,6 @@ secondInstallStage(){
   echo "17. chroot: Getting ready to boot" > /dev/stderr
   sleep 2
   readyForBoot
-  ###### Add step fix refind
   echo "18. chroot: Fix network on boot" > /dev/stderr
   sleep 2
   enableNetworkBoot
@@ -107,7 +107,7 @@ fourthInstallStage(){
   echo "21. : Generate Settings" > /dev/stderr
   sleep 2
   generateSettings
-  
+
   echo "22. Install KDE"
   sleep 2
   installDesktop
@@ -321,8 +321,26 @@ rootPassword(){
 readyForBoot(){
   pacman -S --noconfirm refind-efi intel-ucode
   refind-install
+  echo "a) Fixing refind. Before: " > /dev/stderr
 
-  ### FIX REFIND CONFIG https://wiki.archlinux.org/index.php/REFInd#refind_linux.conf
+  cat /boot/refind_linux.conf
+  sleep 5
+  fixRefind
+
+  echo "b) Fixing refind. After: " > /dev/stderr
+  cat /boot/refind_linux.conf
+  sleep 5
+}
+
+fixRefind(){
+  ROOTPART=$(retrieveSettings 'ROOTPART')
+  ROOTUUID=$(blkid | grep $ROOTPART | grep -oP '(?<=: UUID=).*(?=" TYPE)')
+
+cat <<EOF > /boot/refind_linux.conf
+"Boot with standard options"  "root=UUID=$ROOTUUID rw add_efi_memmap initrd=intel-ucode.img initrd=initramfs-linux.img"
+"Boot using fallback initramfs"  "root=UUID=$ROOTUUID rw add_efi_memmap initrd=intel-ucode.img initrd=initramfs-linux-fallback.img"
+"Boot to terminal"  "root=UUID=$ROOTUUID rw add_efi_memmap initrd=intel-ucode.img initrd=initramfs-linux.img systemd.unit=multi-user.target"
+EOF
 }
 
 enableNetworkBoot(){
