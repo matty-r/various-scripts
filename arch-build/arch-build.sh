@@ -206,15 +206,6 @@ partDisks(){
   BOOTPART=$(retrieveSettings 'BOOTPART')
   ROOTPART=$(retrieveSettings 'ROOTPART')
 
-#  if [ $BOOTMODE = "CREATE" ] && [ $ROOTMODE = "CREATE" ]; then
-#    if [ $BOOTDEVICE = $ROOTDEVICE ]; then
-#      DEVICE=$(echo $BOOTPART | sed 's/[0-9]//g')
-#      parted -s $DEVICE -- mklabel gpt \
-#            mkpart primary fat32 0% 256MiB \
-#            mkpart primary ext4 256MiB 100%
-#    fi
-#  fi
-
   case $BOOTMODE in
     "LEAVE"|"FORMAT")
       echo "Leaving the boot partition..." > /dev/stderr
@@ -235,7 +226,7 @@ partDisks(){
         echo "Root partition will be created. Whole disk will be destroyed!" > /dev/stderr
         DEVICE=$(echo $ROOTPART | sed 's/[0-9]//g')
         parted -s $DEVICE -- mklabel gpt \
-              mkpart primary fat32 0% 100%
+              mkpart primary ext4 0% 100%
         ;;
     esac
 }
