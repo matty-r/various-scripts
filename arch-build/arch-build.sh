@@ -245,19 +245,19 @@ partDisks(){
         ;;
       "CREATE")
         DEVICE=$(echo $ROOTPART | sed 's/[0-9]//g')
-        if [ $BOOTDEVICE = $ROOTDEVICE]; then
+        if [ $BOOTDEVICE = $ROOTDEVICE ]; then
           parted -s $DEVICE -- mkpart primary ext4 256MiB 100%
         else
           echo "Root partition will be created. Whole disk will be destroyed!" > /dev/stderr
           parted -s $DEVICE -- mklabel gpt \
                 mkpart primary ext4 0% 100%
-          ;;
         fi
+        ;;
     esac
 }
 
-### FORMAT PARTITIONS
-#mkfs.ext4 /dev/sdX1
+##FORMAT PARTITIONS
+
 formatParts(){
   BOOTMODE=$(retrieveSettings 'BOOTMODE')
   ROOTMODE=$(retrieveSettings 'ROOTMODE')
@@ -273,7 +273,7 @@ formatParts(){
   fi
 }
 
-### Mount the file systems
+## Mount the file systems
 mountParts(){
   BOOTPART=$(retrieveSettings 'BOOTPART')
   rOOTPART=$(retrieveSettings 'ROOTPART')
@@ -327,9 +327,6 @@ chrootTime(){
   cp $SCRIPTROOT/installer.cfg /mnt/home/$USERNAME
   cp $SCRIPTPATH /mnt/home/$USERNAME
   cp $SCRIPTROOT/installsettings.cfg /mnt/home/$USERNAME
-
-  #Run script from crhoot
-  #arch-chroot /mnt source /mnt/home/$USERNAME/arch-build.sh
 }
 
 ### Set the time zone
@@ -431,14 +428,12 @@ installNvidia(){
   echo "FOURTH" > $SCRIPTROOT/installer.cfg
 }
 
-###################################### reboot
-
-#### Login as new user on reboot
 
 ######################################## Install KDE
 installDesktop(){
   sudo pacman -S --noconfirm plasma kcalc konsole spectacle dolphin dolphin-plugins filelight kate kwalletmanager thunderbird steam ark ffmpegthumbs gwenview gimp kdeconnect kdf kdialog kfind firefox git gnome-keyring wget
 }
+
 
 ###### make yay
 makeYay(){
@@ -452,6 +447,10 @@ makeYay(){
 installGoodies(){
   yay -S --noconfirm gparted ntfs-3g fwupd packagekit-qt5 htop nextcloud-client adapta-kde kvantum-theme-adapta papirus-icon-theme rsync remmina freerdp-git protonmail-bridge ttf-roboto virtualbox virtualbox-host-modules-arch virtualbox-guest-iso xsane spotify libreoffice-fresh discord filezilla atom-editor-bin vlc obs-studio putty networkmanager-openvpn
 }
+
+
+
+
 
 ######################################## Setup install as a virtualbox guest
 setupAsVBoxGuest(){
