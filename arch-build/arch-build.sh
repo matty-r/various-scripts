@@ -12,15 +12,15 @@ generateSettings(){
   echo "FIRST" > $SCRIPTROOT/installer.cfg
 
   ########### MODIFY THESE ONES \/\/\/\/\/\/\/\/ ##################
-  $(exportSettings "INSTALLTYPE" "PHYS") ## << CHANGE. "PHYS" for install on physical hardware. "VBOX" for install as VirtualBox Guest. "QEMU" for install as QEMU/ProxMox Guest.
+  $(exportSettings "INSTALLTYPE" "QEMU") ## << CHANGE. "PHYS" for install on physical hardware. "VBOX" for install as VirtualBox Guest. "QEMU" for install as QEMU/ProxMox Guest.
   $(exportSettings "USERNAME" "matt")  ## << CHANGE
-  $(exportSettings "HOSTNAME" "arch-vm") ## << CHANGE
+  $(exportSettings "HOSTNAME" "test-arch") ## << CHANGE
   BOOTPART="/dev/sda1"  ## << CHANGE BOOT PARTITION
   $(exportSettings "BOOTPART" $BOOTPART)
-  $(exportSettings "BOOTMODE" "LEAVE") # << CREATE WILL DESTROY THE DISK, FORMAT WILL JUST FORMAT THE PARTITION, LEAVE WILL DO NOTHING
+  $(exportSettings "BOOTMODE" "CREATE") # << CREATE WILL DESTROY THE DISK, FORMAT WILL JUST FORMAT THE PARTITION, LEAVE WILL DO NOTHING
   ROOTPART="/dev/sda2"  ## << CHANGE ROOT PARTITION
   $(exportSettings "ROOTPART" $ROOTPART)
-  $(exportSettings "ROOTMODE" "FORMAT") # << CREATE WILL DESTROY THE DISK, FORMAT WILL JUST FORMAT THE PARTITION, LEAVE WILL DO NOTHING
+  $(exportSettings "ROOTMODE" "CREATE") # << CREATE WILL DESTROY THE DISK, FORMAT WILL JUST FORMAT THE PARTITION, LEAVE WILL DO NOTHING
   ########### MODIFY THESE ONES ^^^^^^^^^^^^^^^^
 
   # DO NOT EDIT THESE
@@ -145,7 +145,7 @@ secondInstallStage(){
 
 thirdInstallStage(){
   INSTALLTYPE=$(retrieveSettings "INSTALLTYPE")
-  case $INSTALLSTAGE in
+  case $INSTALLTYPE in
     "PHYS")
         echo "20. install nvidia stuff" > /dev/stderr
         sleep 2
@@ -157,11 +157,13 @@ thirdInstallStage(){
         echo "20. Setting up as QEMU Guest" > /dev/stderr
         sleep 2
         setupAsQemuGuest
+        fourthInstallStage
       ;;
     "VBOX")
         echo "20. Setting up as VirtualBox Guest" > /dev/stderr
         sleep 2
         setupAsVBoxGuest
+        fourthInstallStage
       ;;
   esac
 }
@@ -448,20 +450,20 @@ installGoodies(){
   yay -S --noconfirm gparted ntfs-3g fwupd packagekit-qt5 htop nextcloud-client adapta-kde kvantum-theme-adapta papirus-icon-theme rsync remmina freerdp-git protonmail-bridge ttf-roboto virtualbox virtualbox-host-modules-arch virtualbox-guest-iso xsane spotify libreoffice-fresh discord filezilla atom-editor-bin vlc obs-studio putty networkmanager-openvpn
 }
 
-
-
-
-
 ######################################## Setup install as a virtualbox guest
 setupAsVBoxGuest(){
-  yay -S --noconfirm virtualbox-guest-utils
+  enableMultilibPackages
+  sudo pacman -S --noconfirm virtualbox-guest-utils
   sudo systemctl enable vboxservice.service
   echo "\"FS0:\EFI\refind\refind_x64.efi\"" | sudo tee -a /boot/startup.nsh
+  echo "FOURTH" > $SCRIPTROOT/installer.cfg
 }
 
 setupAsQemuGuest(){
-  yay -S --noconfirm qemu-guest-agent
+  enableMultilibPackages
+  sudo pacman -S --noconfirm qemu-guest-agent
   sudo systemctl enable qemu-ga.service
+  echo "FOURTH" > $SCRIPTROOT/installer.cfg
 }
 
 ############ enable network manager/disable dhcpcd
