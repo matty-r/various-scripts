@@ -11,7 +11,8 @@ generateSettings(){
   # CREATE PROGRESS FILE
   echo "FIRST" > $SCRIPTROOT/installer.cfg
 
-  ########### MODiFY THESE ONES \/\/\/\/\/\/\/\/ ##################
+  ########### MODIFY THESE ONES \/\/\/\/\/\/\/\/ ##################
+  $(exportSettings "INSTALLTYPE" "PHYS") ## << CHANGE. "PHYS" for install on physical hardware. "VBOX" for install as VirtualBox Guest. "QEMU" for install as QEMU/ProxMox Guest.
   $(exportSettings "USERNAME" "matt")  ## << CHANGE
   $(exportSettings "HOSTNAME" "arch-vm") ## << CHANGE
   BOOTPART="/dev/sda1"  ## << CHANGE BOOT PARTITION
@@ -62,24 +63,31 @@ firstInstallStage(){
   echo "1. Generate Settings" > /dev/stderr
   sleep 2
   generateSettings
+
   echo "2. System Clock" > /dev/stderr
   sleep 2
   systemClock
+
   echo "3. Partition Disks" > /dev/stderr
   sleep 2
   partDisks
+
   echo "4. Format Partitions" > /dev/stderr
   sleep 2
   formatParts
+
   echo "5. Mount partitions" > /dev/stderr
   sleep 2
   mountParts
+
   echo "6. Install base packages" > /dev/stderr
   sleep 2
   installBase
+
   echo "7. Making the FSTAB" > /dev/stderr
   sleep 2
   makeFstab
+
   echo "8. Setup chroot." > /dev/stderr
   sleep 2
   chrootTime
@@ -136,13 +144,26 @@ secondInstallStage(){
 }
 
 thirdInstallStage(){
-  echo "20. install nvidia stuff"
-  sleep 2
-  installNvidia
-
-  echo "Rebooting. Re-run on boot. Login as new user"
-  sleep 10
-  sudo reboot
+  INSTALLTYPE=$(retrieveSettings "INSTALLTYPE")
+  case $INSTALLSTAGE in
+    "PHYS")
+        echo "20. install nvidia stuff" > /dev/stderr
+        sleep 2
+        installNvidia
+        echo "Rebooting. Re-run on boot. Login as new user"
+        sudo reboot
+      ;;
+    "QEMU")
+        echo "20. Setting up as QEMU Guest" > /dev/stderr
+        sleep 2
+        setupAsQemuGuest
+      ;;
+    "VBOX")
+        echo "20. Setting up as VirtualBox Guest" > /dev/stderr
+        sleep 2
+        setupAsVBoxGuest
+      ;;
+  esac
 }
 
 fourthInstallStage(){
@@ -223,11 +244,15 @@ partDisks(){
         echo "Leaving the root partition..." > /dev/stderr
         ;;
       "CREATE")
-        echo "Root partition will be created. Whole disk will be destroyed!" > /dev/stderr
         DEVICE=$(echo $ROOTPART | sed 's/[0-9]//g')
-        parted -s $DEVICE -- mklabel gpt \
-              mkpart primary ext4 0% 100%
-        ;;
+        if [ $BOOTDEVICE = $ROOTDEVICE]; then
+          parted -s $DEVICE -- mkpart primary ext4 256MiB 100%
+        else
+          echo "Root partition will be created. Whole disk will be destroyed!" > /dev/stderr
+          parted -s $DEVICE -- mklabel gpt \
+                mkpart primary ext4 0% 100%
+          ;;
+        fi
     esac
 }
 
@@ -350,15 +375,7 @@ rootPassword(){
 readyForBoot(){
   pacman -S --noconfirm refind-efi intel-ucode
   refind-install
-  echo "a) Fixing refind. Before: " > /dev/stderr
-
-  cat /boot/refind_linux.conf
-  sleep 5
   fixRefind
-
-  echo "b) Fixing refind. After: " > /dev/stderr
-  cat /boot/refind_linux.conf
-  sleep 5
 }
 
 fixRefind(){
@@ -433,7 +450,19 @@ makeYay(){
 
 ######################################## Install the good stuff
 installGoodies(){
-  yay -S --noconfirm gparted ntfs-3g fwupd packagekit-qt5 htop nextcloud-client adapta-kde kvantum-theme-adapta papirus-icon-theme rsync remmina freerdp-git protonmail-bridge ttf-roboto virtualbox virtualbox-host-modules-arch virtualbox-guest-iso xsane spotify libreoffice-fresh discord filezilla atom-editor-bin vlc obs-studio putty
+  yay -S --noconfirm gparted ntfs-3g fwupd packagekit-qt5 htop nextcloud-client adapta-kde kvantum-theme-adapta papirus-icon-theme rsync remmina freerdp-git protonmail-bridge ttf-roboto virtualbox virtualbox-host-modules-arch virtualbox-guest-iso xsane spotify libreoffice-fresh discord filezilla atom-editor-bin vlc obs-studio putty networkmanager-openvpn
+}
+
+######################################## Setup install as a virtualbox guest
+setupAsVBoxGuest(){
+  yay -S --noconfirm virtualbox-guest-utils
+  sudo systemctl enable vboxservice.service
+  echo "\"FS0:\EFI\refind\refind_x64.efi\"" | sudo tee -a /boot/startup.nsh
+}
+
+setupAsQemuGuest(){
+  yay -S --noconfirm qemu-guest-agent
+  sudo systemctl enable qemu-ga.service
 }
 
 ############ enable network manager/disable dhcpcd
@@ -444,13 +473,9 @@ readyFinalBoot(){
   sudo systemctl enable NetworkManager
   sudo systemctl enable sddm
   echo "DONE" > $SCRIPTROOT/installer.cfg
-  ###### unset no password sudoers
+  ###### Remove no password for sudoers
   sudo sed -i "s/%wheel ALL=(ALL) NOPASSWD: ALL/# %wheel ALL=(ALL) NOPASSWD: ALL/" /etc/sudoers
 }
 
-
-###################################### reboot
-
-#### Login as new user on reboot
-
+#Start the script
 driver
