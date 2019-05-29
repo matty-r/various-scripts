@@ -198,15 +198,19 @@ fourthInstallStage(){
 
   echo "22. Install Desktop Environment"
   sleep 2
-  installDesktop
+  installDesktopBase
 
   echo "23. Install yay - AUR package manager"
   sleep 2
   makeYay
 
-  echo "24. Install Goodies"
+  echo "24. Install Base Goodies"
   sleep 2
-  installGoodies
+  installBaseGoodies
+
+  echo "25. Install Desktop Goodies"
+  sleep 2
+  installDesktopGoodies
 
   echo "25. Readying final boot."
   sleep 2
@@ -332,7 +336,7 @@ EOF
 ### Install the base packages
 installBase(){
   setAussieMirrors
-  pacstrap /mnt base base-devel
+  pacstrap /mnt base base-devel openssh
 }
 
 ### Generate an fstab file
@@ -396,6 +400,7 @@ rootPassword(){
 ### INSTALL BOOTLOADER AND MICROCODE
 readyForBoot(){
   CPUTYPE=$(retrieveSettings 'CPUTYPE')
+  systemctl enable sshd
   pacman -S --noconfirm refind-efi $CPUTYPE'-ucode'
   refind-install
   fixRefind
@@ -458,20 +463,21 @@ installGraphics(){
       ;;
   esac
 
-
   echo "FOURTH" > $SCRIPTROOT/installer.cfg
 }
 
 
 ######################################## Install DE
-installDesktop(){
+installDesktopBase(){
   DESKTOP=$(retrieveSettings 'DESKTOP')
   case $DESKTOP in
     "KDE" )
-      sudo pacman -S --noconfirm plasma kcalc konsole spectacle dolphin dolphin-plugins filelight kate kwalletmanager kdeconnect kdf kdialog kfind
+      sudo pacman -S --noconfirm plasma kcalc konsole spectacle dolphin dolphin-plugins filelight kate kwalletmanager kdeconnect kdf kdialog kfind git
+      sudo systemctl enable sddm
       ;;
     "XFCE" )
-      sudo pacman -S --noconfirm xfce4 xfce4-goodies
+      sudo pacman -S --noconfirm xfce4 xfce4-goodies git lxdm
+      sudo systemctl enable lxdm
       ;;
   esac
 }
@@ -484,21 +490,29 @@ makeYay(){
   cd ~
 }
 
-######################################## Install the good stuff
-installGoodies(){
+installBaseGoodies(){
+  INSTALLTYPE=$(retrieveSettings "INSTALLTYPE")
+  case $INSTALLTYPE in
+    "PHYS" )
+        yay -S --noconfirm fwupd virtualbox virtualbox-host-modules-arch virtualbox-guest-iso remmina freerdp-git protonmail-bridge xsane spotify libreoffice-fresh discord filezilla vlc obs-studio thunderbird gimp steam
+      ;;
+  esac
+
+  yay -S --noconfirm gparted ntfs-3g htop nextcloud-client papirus-icon-theme rsync ttf-roboto filezilla atom-editor-bin putty networkmanager-openvpn firefox gnome-keyring wget
+}
+
+installDesktopGoodies(){
   DESKTOP=$(retrieveSettings 'DESKTOP')
   INSTALLTYPE=$(retrieveSettings "INSTALLTYPE")
 
   case $DESKTOP in
     "KDE" )
-      if [[ $INSTALLTYPE = "PHYS" ]]; then
-        yay -S --noconfirm gparted ntfs-3g fwupd packagekit-qt5 htop nextcloud-client adapta-kde kvantum-theme-adapta papirus-icon-theme rsync remmina freerdp-git protonmail-bridge ttf-roboto virtualbox virtualbox-host-modules-arch virtualbox-guest-iso xsane spotify libreoffice-fresh discord filezilla atom-editor-bin vlc obs-studio putty networkmanager-openvpn thunderbird ark ffmpegthumbs gwenview gimp firefox git gnome-keyring wget steam
-      else
-        yay -S --noconfirm gparted packagekit-qt5 htop nextcloud-client adapta-kde kvantum-theme-adapta papirus-icon-theme rsync ttf-roboto filezilla atom-editor-bin putty networkmanager-openvpn ark ffmpegthumbs gwenview firefox git gnome-keyring wget
-      fi
-      ;;
+      yay -S --noconfirm packagekit-qt5 adapta-kde kvantum-theme-adapta ffmpegthumbs ark gwenview
+    ;;
+    "XFCE" )
+      yay -S --noconfirm networkmanager adapta-gtk-theme
+    ;;
   esac
-
 }
 
 ######################################## Setup install as a virtualbox guest
@@ -522,8 +536,8 @@ readyFinalBoot(){
   SCRIPTROOT=$(retrieveSettings 'SCRIPTROOT')
   NETINT=$(retrieveSettings 'NETINT')
   sudo systemctl disable dhcpcd@$NETINT.service
+  sudo systemctl disable sshd
   sudo systemctl enable NetworkManager
-  sudo systemctl enable sddm
   echo "DONE" > $SCRIPTROOT/installer.cfg
   ###### Remove no password for sudoers
   sudo sed -i "s/%wheel ALL=(ALL) NOPASSWD: ALL/# %wheel ALL=(ALL) NOPASSWD: ALL/" /etc/sudoers
