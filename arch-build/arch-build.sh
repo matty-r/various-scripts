@@ -161,6 +161,8 @@ secondInstallStage(){
   sleep 2
   createUser
 
+  thirdInstallStage
+
   echo "Rebooting. Re-run on boot. Login as new user"
   sleep 10
   exit
@@ -173,20 +175,16 @@ thirdInstallStage(){
         echo "20. install graphics stuff" > /dev/stderr
         sleep 2
         installGraphics
-        echo "Rebooting. Re-run on boot. Login as new user"
-        sudo reboot
       ;;
     "QEMU")
         echo "20. Setting up as QEMU Guest" > /dev/stderr
         sleep 2
         setupAsQemuGuest
-        fourthInstallStage
       ;;
     "VBOX")
         echo "20. Setting up as VirtualBox Guest" > /dev/stderr
         sleep 2
         setupAsVBoxGuest
-        fourthInstallStage
       ;;
   esac
 }
@@ -494,11 +492,12 @@ installBaseGoodies(){
   INSTALLTYPE=$(retrieveSettings "INSTALLTYPE")
   case $INSTALLTYPE in
     "PHYS" )
-        yay -S --noconfirm fwupd virtualbox virtualbox-host-modules-arch virtualbox-guest-iso remmina freerdp-git protonmail-bridge xsane spotify libreoffice-fresh discord filezilla vlc obs-studio thunderbird gimp steam
+        yay -S --noconfirm fwupd virtualbox virtualbox-host-modules-arch virtualbox-guest-iso remmina freerdp-git protonmail-bridge gscan2pdf spotify libreoffice-fresh discord filezilla vlc obs-studio thunderbird gimp steam cups cups-pdf tesseract tesseract-data-eng pdftk-bin
+        sudo systemctl enable org.cups.cupsd
       ;;
   esac
 
-  yay -S --noconfirm gparted ntfs-3g htop nextcloud-client papirus-icon-theme rsync ttf-roboto filezilla atom-editor-bin putty networkmanager-openvpn firefox gnome-keyring wget
+  yay -S --noconfirm gparted ntfs-3g htop nextcloud-client papirus-icon-theme rsync ttf-roboto filezilla atom-editor-bin putty networkmanager-openvpn firefox gnome-keyring wget okular masterpdfeditor-free
 }
 
 installDesktopGoodies(){
@@ -507,7 +506,7 @@ installDesktopGoodies(){
 
   case $DESKTOP in
     "KDE" )
-      yay -S --noconfirm packagekit-qt5 adapta-kde kvantum-theme-adapta ffmpegthumbs ark gwenview
+      yay -S --noconfirm packagekit-qt5 adapta-kde kvantum-theme-adapta ffmpegthumbs ark gwenview print-manager
     ;;
     "XFCE" )
       yay -S --noconfirm networkmanager adapta-gtk-theme
