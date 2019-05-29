@@ -15,6 +15,7 @@ generateSettings(){
   $(exportSettings "INSTALLTYPE" "QEMU") ## << CHANGE. "PHYS" for install on physical hardware. "VBOX" for install as VirtualBox Guest. "QEMU" for install as QEMU/ProxMox Guest.
   $(exportSettings "USERNAME" "matt")  ## << CHANGE
   $(exportSettings "HOSTNAME" "test-arch") ## << CHANGE
+  $(exportSettings "DESKTOP" "KDE") ## << CHANGE. "KDE" for Plasma, "XFCE" for XFCE.
   BOOTPART="/dev/sda1"  ## << CHANGE BOOT PARTITION
   $(exportSettings "BOOTPART" $BOOTPART)
   $(exportSettings "BOOTMODE" "CREATE") # << CREATE WILL DESTROY THE DISK, FORMAT WILL JUST FORMAT THE PARTITION, LEAVE WILL DO NOTHING
@@ -31,6 +32,28 @@ generateSettings(){
   $(exportSettings "SCRIPTPATH" "$SCRIPTPATH")
   $(exportSettings "SCRIPTROOT" "$SCRIPTROOT")
   $(exportSettings "NETINT" $(ip link | grep "BROADCAST,MULTICAST,UP,LOWER_UP" | grep -oP '(?<=: ).*(?=: )') )
+
+  #set comparison to ignore case temporarily
+  shopt -s nocasematch
+
+  CPUTYPE=$(lscpu | grep Vendor)
+  if [[ $CPUTYPE =~ "AMD" ]]; then
+    CPUTYPE="amd"
+  else
+    CPUTYPE="intel"
+  fi
+  $(exportSettings "CPUTYPE" "$CPUTYPE")
+
+  GPUTYPE=$(lspci -vnn | grep VGA)
+  if [[ $GPUTYPE =~ "nvidia" ]]; then
+    GPUTYPE="nvidia"
+  else
+    GPUTYPE="vm"
+  fi
+  $(exportSettings "GPUTYPE" "$GPUTYPE")
+
+  #reset comparisons
+  shopt -u nocasematch
 }
 
 
@@ -147,9 +170,9 @@ thirdInstallStage(){
   INSTALLTYPE=$(retrieveSettings "INSTALLTYPE")
   case $INSTALLTYPE in
     "PHYS")
-        echo "20. install nvidia stuff" > /dev/stderr
+        echo "20. install graphics stuff" > /dev/stderr
         sleep 2
-        installNvidia
+        installGraphics
         echo "Rebooting. Re-run on boot. Login as new user"
         sudo reboot
       ;;
@@ -173,7 +196,7 @@ fourthInstallStage(){
   sleep 2
   generateSettings
 
-  echo "22. Install KDE"
+  echo "22. Install Desktop Environment"
   sleep 2
   installDesktop
 
@@ -372,7 +395,8 @@ rootPassword(){
 
 ### INSTALL BOOTLOADER AND MICROCODE
 readyForBoot(){
-  pacman -S --noconfirm refind-efi intel-ucode
+  CPUTYPE=$(retrieveSettings 'CPUTYPE')
+  pacman -S --noconfirm refind-efi $CPUTYPE'-ucode'
   refind-install
   fixRefind
 }
@@ -380,11 +404,12 @@ readyForBoot(){
 fixRefind(){
   ROOTPART=$(retrieveSettings 'ROOTPART')
   ROOTUUID=$(blkid | grep $ROOTPART | grep -oP '(?<= UUID=").*(?=" TYPE)')
+  CPUTYPE=$(retrieveSettings 'CPUTYPE')
 
 cat <<EOF > /boot/refind_linux.conf
-"Boot with standard options"  "root=UUID=$ROOTUUID rw add_efi_memmap initrd=intel-ucode.img initrd=initramfs-linux.img"
-"Boot using fallback initramfs"  "root=UUID=$ROOTUUID rw add_efi_memmap initrd=intel-ucode.img initrd=initramfs-linux-fallback.img"
-"Boot to terminal"  "root=UUID=$ROOTUUID rw add_efi_memmap initrd=intel-ucode.img initrd=initramfs-linux.img systemd.unit=multi-user.target"
+"Boot with standard options"  "root=UUID=$ROOTUUID rw add_efi_memmap initrd=$CPUTYPE-ucode.img initrd=initramfs-linux.img"
+"Boot using fallback initramfs"  "root=UUID=$ROOTUUID rw add_efi_memmap initrd=$CPUTYPE-ucode.img initrd=initramfs-linux-fallback.img"
+"Boot to terminal"  "root=UUID=$ROOTUUID rw add_efi_memmap initrd=$CPUTYPE-ucode.img initrd=initramfs-linux.img systemd.unit=multi-user.target"
 EOF
 }
 
@@ -422,20 +447,34 @@ enableMultilibPackages(){
 }
 
 ######################################## Install nvidia stuff
-installNvidia(){
+installGraphics(){
   SCRIPTROOT=$(retrieveSettings 'SCRIPTROOT')
+  GPUTYPE=$(retrieveSettings 'GPUTYPE')
   enableMultilibPackages
 
-  sudo pacman -S --noconfirm nvidia lib32-nvidia-utils lib32-vulkan-icd-loader vulkan-icd-loader nvidia-settings
+  case $GPUTYPE in
+    "nvidia" )
+        sudo pacman -S --noconfirm nvidia lib32-nvidia-utils lib32-vulkan-icd-loader vulkan-icd-loader nvidia-settings
+      ;;
+  esac
+
+
   echo "FOURTH" > $SCRIPTROOT/installer.cfg
 }
 
 
-######################################## Install KDE
+######################################## Install DE
 installDesktop(){
-  sudo pacman -S --noconfirm plasma kcalc konsole spectacle dolphin dolphin-plugins filelight kate kwalletmanager thunderbird steam ark ffmpegthumbs gwenview gimp kdeconnect kdf kdialog kfind firefox git gnome-keyring wget
+  DESKTOP=$(retrieveSettings 'DESKTOP')
+  case $DESKTOP in
+    "KDE" )
+      sudo pacman -S --noconfirm plasma kcalc konsole spectacle dolphin dolphin-plugins filelight kate kwalletmanager kdeconnect kdf kdialog kfind
+      ;;
+    "XFCE" )
+      sudo pacman -S --noconfirm xfce4 xfce4-goodies
+      ;;
+  esac
 }
-
 
 ###### make yay
 makeYay(){
@@ -447,7 +486,19 @@ makeYay(){
 
 ######################################## Install the good stuff
 installGoodies(){
-  yay -S --noconfirm gparted ntfs-3g fwupd packagekit-qt5 htop nextcloud-client adapta-kde kvantum-theme-adapta papirus-icon-theme rsync remmina freerdp-git protonmail-bridge ttf-roboto virtualbox virtualbox-host-modules-arch virtualbox-guest-iso xsane spotify libreoffice-fresh discord filezilla atom-editor-bin vlc obs-studio putty networkmanager-openvpn
+  DESKTOP=$(retrieveSettings 'DESKTOP')
+  INSTALLTYPE=$(retrieveSettings "INSTALLTYPE")
+
+  case $DESKTOP in
+    "KDE" )
+      if [[ $INSTALLTYPE = "PHYS" ]]; then
+        yay -S --noconfirm gparted ntfs-3g fwupd packagekit-qt5 htop nextcloud-client adapta-kde kvantum-theme-adapta papirus-icon-theme rsync remmina freerdp-git protonmail-bridge ttf-roboto virtualbox virtualbox-host-modules-arch virtualbox-guest-iso xsane spotify libreoffice-fresh discord filezilla atom-editor-bin vlc obs-studio putty networkmanager-openvpn thunderbird ark ffmpegthumbs gwenview gimp firefox git gnome-keyring wget steam
+      else
+        yay -S --noconfirm gparted packagekit-qt5 htop nextcloud-client adapta-kde kvantum-theme-adapta papirus-icon-theme rsync ttf-roboto filezilla atom-editor-bin putty networkmanager-openvpn ark ffmpegthumbs gwenview firefox git gnome-keyring wget
+      fi
+      ;;
+  esac
+
 }
 
 ######################################## Setup install as a virtualbox guest
