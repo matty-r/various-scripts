@@ -9,13 +9,13 @@ generateSettings(){
   # create settings file
   echo "" > $SCRIPTROOT/installsettings.cfg
   # CREATE PROGRESS FILE
-  echo "FIRST" > $SCRIPTROOT/installer.cfg
+  #echo "FIRST" > $SCRIPTROOT/installer.cfg
 
   ########### MODIFY THESE ONES \/\/\/\/\/\/\/\/ ##################
-  $(exportSettings "INSTALLTYPE" "QEMU") ## << CHANGE. "PHYS" for install on physical hardware. "VBOX" for install as VirtualBox Guest. "QEMU" for install as QEMU/ProxMox Guest.
+  $(exportSettings "INSTALLTYPE" "HYPERV") ## << CHANGE. "PHYS" for install on physical hardware. "VBOX" for install as VirtualBox Guest. "QEMU" for install as QEMU/ProxMox Guest.
   $(exportSettings "USERNAME" "matt")  ## << CHANGE
-  $(exportSettings "HOSTNAME" "test-arch") ## << CHANGE
-  $(exportSettings "DESKTOP" "KDE") ## << CHANGE. "KDE" for Plasma, "XFCE" for XFCE.
+  $(exportSettings "HOSTNAME" "arch-temp") ## << CHANGE
+  $(exportSettings "DESKTOP" "XFCE") ## << CHANGE. "KDE" for Plasma, "XFCE" for XFCE.
   BOOTPART="/dev/sda1"  ## << CHANGE BOOT PARTITION
   $(exportSettings "BOOTPART" $BOOTPART)
   $(exportSettings "BOOTMODE" "CREATE") # << CREATE WILL DESTROY THE DISK, FORMAT WILL JUST FORMAT THE PARTITION, LEAVE WILL DO NOTHING
@@ -186,6 +186,10 @@ thirdInstallStage(){
         sleep 2
         setupAsVBoxGuest
       ;;
+    "HYPERV")
+       echo "20. Setting up as Hyper-V Guest" > /dev/stderr
+       sleep 2
+       setupAsHyperGuest
   esac
 }
 
@@ -194,11 +198,11 @@ fourthInstallStage(){
   sleep 2
   generateSettings
 
-  echo "22. Install Desktop Environment"
+  echo "22. Install Desktop Environment" > /dev/stderr
   sleep 2
   installDesktopBase
 
-  echo "23. Install yay - AUR package manager"
+  echo "23. Install yay - AUR package manager" > /dev/stderr
   sleep 2
   makeYay
 
@@ -334,7 +338,7 @@ EOF
 ### Install the base packages
 installBase(){
   setAussieMirrors
-  pacstrap /mnt base base-devel openssh
+  pacstrap /mnt base base-devel openssh git
 }
 
 ### Generate an fstab file
@@ -470,11 +474,11 @@ installDesktopBase(){
   DESKTOP=$(retrieveSettings 'DESKTOP')
   case $DESKTOP in
     "KDE" )
-      sudo pacman -S --noconfirm plasma kcalc konsole spectacle dolphin dolphin-plugins filelight kate kwalletmanager kdeconnect kdf kdialog kfind git
+      sudo pacman -S --noconfirm plasma kcalc konsole spectacle dolphin dolphin-plugins filelight kate kwalletmanager kdeconnect kdf kdialog kfind
       sudo systemctl enable sddm
       ;;
     "XFCE" )
-      sudo pacman -S --noconfirm xfce4 xfce4-goodies git lxdm
+      sudo pacman -S --noconfirm xfce4 xfce4-goodies lxdm
       sudo systemctl enable lxdm
       ;;
   esac
@@ -495,6 +499,16 @@ installBaseGoodies(){
         yay -S --noconfirm fwupd virtualbox virtualbox-host-modules-arch virtualbox-guest-iso remmina freerdp-git protonmail-bridge gscan2pdf spotify libreoffice-fresh discord filezilla vlc obs-studio thunderbird gimp steam cups cups-pdf tesseract tesseract-data-eng pdftk-bin
         sudo systemctl enable org.cups.cupsd
       ;;
+    "HYPERV" )
+        git clone https://github.com/Microsoft/linux-vm-tools
+      	cd linux-vm-tools/arch
+      	yay -S --noconfirm xrdp-git
+      	./makepkg.sh
+      	cd ~/linux-vm-tools/arch
+      	sudo ./install-config.sh
+      	cd ~
+      	cp /etc/X11/xinit/xinitrc ~/.xinitrc
+      ;;
   esac
 
   yay -S --noconfirm gparted ntfs-3g htop nextcloud-client papirus-icon-theme rsync ttf-roboto filezilla atom-editor-bin putty networkmanager-openvpn firefox gnome-keyring wget okular masterpdfeditor-free
@@ -509,13 +523,14 @@ installDesktopGoodies(){
       yay -S --noconfirm packagekit-qt5 adapta-kde kvantum-theme-adapta ffmpegthumbs ark gwenview print-manager
     ;;
     "XFCE" )
-      yay -S --noconfirm networkmanager adapta-gtk-theme
+      yay -S --noconfirm networkmanager network-manager-applet adapta-gtk-theme
     ;;
   esac
 }
 
 ######################################## Setup install as a virtualbox guest
 setupAsVBoxGuest(){
+  SCRIPTROOT=$(retrieveSettings 'SCRIPTROOT')
   enableMultilibPackages
   sudo pacman -S --noconfirm virtualbox-guest-utils
   sudo systemctl enable vboxservice.service
@@ -524,9 +539,17 @@ setupAsVBoxGuest(){
 }
 
 setupAsQemuGuest(){
+  SCRIPTROOT=$(retrieveSettings 'SCRIPTROOT')
   enableMultilibPackages
   sudo pacman -S --noconfirm qemu-guest-agent
   sudo systemctl enable qemu-ga.service
+  echo "FOURTH" > $SCRIPTROOT/installer.cfg
+}
+
+setupAsHyperGuest(){
+  SCRIPTROOT=$(retrieveSettings 'SCRIPTROOT')
+  enableMultilibPackages
+  sudo pacman -S --noconfirm xf86-video-fbdev
   echo "FOURTH" > $SCRIPTROOT/installer.cfg
 }
 
