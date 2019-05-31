@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# Version 1
 # Arch Linux INSTALL SCRIPT
 
 generateSettings(){
@@ -7,9 +7,7 @@ generateSettings(){
   SCRIPTPATH=$( readlink -m $( type -p $0 ))
   SCRIPTROOT=${SCRIPTPATH%/*}
   # create settings file
-  echo "" > $SCRIPTROOT/installsettings.cfg
-  # CREATE PROGRESS FILE
-  #echo "FIRST" > $SCRIPTROOT/installer.cfg
+  echo "" > "$SCRIPTROOT/installsettings.cfg"
 
   ########### MODIFY THESE ONES \/\/\/\/\/\/\/\/ ##################
   $(exportSettings "INSTALLTYPE" "HYPERV") ## << CHANGE. "PHYS" for install on physical hardware. "VBOX" for install as VirtualBox Guest. "QEMU" for install as QEMU/ProxMox Guest.
@@ -32,6 +30,14 @@ generateSettings(){
   $(exportSettings "SCRIPTPATH" "$SCRIPTPATH")
   $(exportSettings "SCRIPTROOT" "$SCRIPTROOT")
   $(exportSettings "NETINT" $(ip link | grep "BROADCAST,MULTICAST,UP,LOWER_UP" | grep -oP '(?<=: ).*(?=: )') )
+  EFIPATH="/sys/firmware/efi/efivars"
+  if [ -f "$EFIPATH" ]
+  then
+  	echo "$EFIPATH found."
+    $(exportSettings "BOOTTYPE" "EFI")
+  else
+  	$(exportSettings "BOOTTYPE" "BIOS")
+  fi
 
   #set comparison to ignore case temporarily
   shopt -s nocasematch
@@ -61,7 +67,7 @@ driver(){
   SCRIPTPATH=$( readlink -m $( type -p $0 ))
   SCRIPTROOT=${SCRIPTPATH%/*}
 
-  INSTALLSTAGE=$(cat $SCRIPTROOT/installer.cfg)
+  INSTALLSTAGE=$(cat "$SCRIPTROOT/installer.cfg")
   case $INSTALLSTAGE in
     "FIRST"|"")
       echo "FIRST INSTALL STAGE" > /dev/stderr
@@ -230,14 +236,14 @@ exportSettings(){
   echo "Exporting $1=$2" > /dev/stderr
   EXPORTPARAM="$1=$2"
   ## write all settings to a file on new root
-  echo -e "$EXPORTPARAM" >> $SCRIPTROOT/installsettings.cfg
+  echo -e "$EXPORTPARAM" >> "$SCRIPTROOT/installsettings.cfg"
 }
 
 #retrieveSettings 'SETTINGNAME'
 retrieveSettings(){
   SCRIPTPATH=$( readlink -m $( type -p $0 ))
   SCRIPTROOT=${SCRIPTPATH%/*}
-  SETTINGSPATH=$SCRIPTROOT"/installsettings.cfg"
+  SETTINGSPATH="$SCRIPTROOT/installsettings.cfg"
 
   SETTINGNAME=$1
   SETTING=$(cat $SETTINGSPATH | grep $1 | cut -f2,2 -d'=')
@@ -252,23 +258,26 @@ systemClock(){
 ### PARTITION DISKS
 partDisks(){
   BOOTMODE=$(retrieveSettings 'BOOTMODE')
+  BOOTTYPE=$(retrieveSettings 'BOOTTYPE')
   ROOTMODE=$(retrieveSettings 'ROOTMODE')
   BOOTDEVICE=$(retrieveSettings 'BOOTDEVICE')
   ROOTDEVICE=$(retrieveSettings 'ROOTDEVICE')
   BOOTPART=$(retrieveSettings 'BOOTPART')
   ROOTPART=$(retrieveSettings 'ROOTPART')
 
-  case $BOOTMODE in
-    "LEAVE"|"FORMAT")
-      echo "Leaving the boot partition..." > /dev/stderr
-      ;;
-    "CREATE")
-      echo "Boot partition will be created. Whole disk will be destroyed!" > /dev/stderr
-      DEVICE=$(echo $BOOTPART | sed 's/[0-9]//g')
-      parted -s $DEVICE -- mklabel gpt \
-            mkpart primary fat32 0% 256MiB
-      ;;
+  if [[ $BOOTTYPE = "EFI" ]]; then
+    case $BOOTMODE in
+      "LEAVE"|"FORMAT")
+        echo "Leaving the boot partition..." > /dev/stderr
+        ;;
+      "CREATE")
+        echo "Boot partition will be created. Whole disk will be destroyed!" > /dev/stderr
+        DEVICE=$(echo $BOOTPART | sed 's/[0-9]//g')
+        parted -s $DEVICE -- mklabel gpt \
+              mkpart primary fat32 0% 256MiB
+        ;;
     esac
+  fi
 
     case $ROOTMODE in
       "LEAVE"|"FORMAT")
@@ -276,12 +285,20 @@ partDisks(){
         ;;
       "CREATE")
         DEVICE=$(echo $ROOTPART | sed 's/[0-9]//g')
-        if [ $BOOTDEVICE = $ROOTDEVICE ]; then
-          parted -s $DEVICE -- mkpart primary ext4 256MiB 100%
+        if [[ $BOOTTYPE = "EFI" ]]; then
+          #If the root device matches the boot device, don't setup device label
+          if [ $BOOTDEVICE = $ROOTDEVICE ]; then
+            parted -s $DEVICE -- mkpart primary ext4 256MiB 100%
+          else
+            echo "Root partition will be created. Whole disk will be destroyed!" > /dev/stderr
+            parted -s $DEVICE -- mklabel gpt \
+                  mkpart primary ext4 0% 100%
+          fi
         else
           echo "Root partition will be created. Whole disk will be destroyed!" > /dev/stderr
-          parted -s $DEVICE -- mklabel gpt \
-                mkpart primary ext4 0% 100%
+          parted -s $DEVICE -- mklabel mbr \
+                mkpart primary ext4 0% 100% \
+                set 1 boot on
         fi
         ;;
     esac
