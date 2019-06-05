@@ -513,8 +513,9 @@ installBaseGoodies(){
   INSTALLTYPE=$(retrieveSettings "INSTALLTYPE")
   case $INSTALLTYPE in
     "PHYS" )
-        yay -S --noconfirm fwupd virtualbox virtualbox-host-modules-arch virtualbox-guest-iso remmina freerdp-git protonmail-bridge gscan2pdf spotify libreoffice-fresh discord filezilla vlc obs-studio thunderbird gimp steam cups cups-pdf tesseract tesseract-data-eng pdftk-bin
+        yay -S --noconfirm fwupd virtualbox virtualbox-host-modules-arch virtualbox-guest-iso remmina freerdp-git protonmail-bridge gscan2pdf spotify libreoffice-fresh discord filezilla vlc obs-studio thunderbird gimp steam cups cups-pdf tesseract tesseract-data-eng pdftk-bin pulseaudio-bluetooth
         sudo systemctl enable org.cups.cupsd
+        sudo systemctl enable bluetooth
       ;;
     "HYPERV" )
         git clone https://github.com/Microsoft/linux-vm-tools
@@ -537,7 +538,7 @@ installDesktopGoodies(){
 
   case $DESKTOP in
     "KDE" )
-      yay -S --noconfirm packagekit-qt5 adapta-kde kvantum-theme-adapta ffmpegthumbs ark gwenview print-manager
+      yay -S --noconfirm packagekit-qt5 adapta-kde kvantum-theme-adapta ffmpegthumbs ark gwenview print-manager adapta-gtk-theme
     ;;
     "XFCE" )
       yay -S --noconfirm networkmanager network-manager-applet adapta-gtk-theme
