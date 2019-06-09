@@ -90,35 +90,27 @@ driver(){
 
 firstInstallStage(){
   echo "1. Generate Settings"
-  sleep 2
   generateSettings
 
   echo "2. System Clock"
-  sleep 2
   systemClock
 
   echo "3. Partition Disks"
-  sleep 2
   partDisks
 
   echo "4. Format Partitions"
-  sleep 2
   formatParts
 
   echo "5. Mount partitions"
-  sleep 2
   mountParts
 
   echo "6. Install base packages"
-  sleep 2
   installBase
 
   echo "7. Making the FSTAB"
-  sleep 2
   makeFstab
 
   echo "8. Setup chroot."
-  sleep 2
   chrootTime
 
   USERNAME=$(retrieveSettings "USERNAME")
@@ -129,43 +121,33 @@ firstInstallStage(){
 
 secondInstallStage(){
   echo "10. chroot: Generate Settings"
-  sleep 2
   generateSettings
 
   echo "11. chroot: Set Time"
-  sleep 2
   setTime
 
   echo "12. chroot: Generate locales"
-  sleep 2
   genLocales
 
   echo "13. chroot: Apply HostName"
-  sleep 2
   applyHostname
 
   echo "14. chroot: Add hosts file entries"
-  sleep 2
   addHosts
 
   echo "15. chroot: Generate mkinitcpio"
-  sleep 2
   genInit
 
   echo "16. chroot: Set root password"
-  sleep 2
   rootPassword
 
   echo "17. chroot: Getting ready to boot"
-  sleep 2
   readyForBoot
 
   echo "18. chroot: Fix network on boot"
-  sleep 2
   enableNetworkBoot
 
   echo "19. chroot: Create new user"
-  sleep 2
   createUser
 
   thirdInstallStage
@@ -179,53 +161,42 @@ thirdInstallStage(){
   case $INSTALLTYPE in
     "PHYS")
         echo "20. install graphics stuff"
-        sleep 2
         installGraphics
       ;;
     "QEMU")
         echo "20. Setting up as QEMU Guest"
-        sleep 2
         setupAsQemuGuest
       ;;
     "VBOX")
         echo "20. Setting up as VirtualBox Guest"
-        sleep 2
         setupAsVBoxGuest
       ;;
     "HYPERV")
        echo "20. Setting up as Hyper-V Guest"
-       sleep 2
        setupAsHyperGuest
   esac
 }
 
 fourthInstallStage(){
   echo "21. : Generate Settings"
-  sleep 2
   generateSettings
 
   echo "22. Install Desktop Environment"
-  sleep 2
   installDesktopBase
 
   echo "23. Install yay - AUR package manager"
-  sleep 2
   makeYay
 
   echo "24. Install Base Goodies"
-  sleep 2
   installBaseGoodies
 
   echo "25. Install Desktop Goodies"
-  sleep 2
   installDesktopGoodies
 
   echo "25. Readying final boot."
-  sleep 2
   readyFinalBoot
 
   echo "Script done. You're good to go after reboot."
-  sleep 10
 }
 
 exportSettings(){
@@ -530,7 +501,7 @@ installBaseGoodies(){
       ;;
   esac
 
-  yay -S --noconfirm gparted ntfs-3g htop nextcloud-client papirus-icon-theme rsync ttf-roboto filezilla atom-editor-bin putty networkmanager-openvpn firefox gnome-keyring wget okular masterpdfeditor-free
+  yay -S --noconfirm gparted ntfs-3g htop nextcloud-client papirus-icon-theme rsync ttf-roboto filezilla visual-studio-code-bin putty networkmanager-openvpn firefox gnome-keyring wget okular masterpdfeditor-free
 }
 
 installDesktopGoodies(){
@@ -560,6 +531,9 @@ setupAsVBoxGuest(){
 setupAsQemuGuest(){
   SCRIPTROOT=$(retrieveSettings 'SCRIPTROOT')
   enableMultilibPackages
+
+  sudo sed -i "s/MODULES=()/MODULES=(virtio virtio_blk virtio_pci virtio_net)/" /etc/mkinitcpio.conf
+  sudo mkinitcpio -p linux
   sudo pacman -S --noconfirm qemu-guest-agent
   sudo systemctl enable qemu-ga.service
   echo "FOURTH" > $SCRIPTROOT/installer.cfg
