@@ -33,7 +33,6 @@ generateSettings(){
   EFIPATH="/sys/firmware/efi/efivars"
   if [ -d "$EFIPATH" ]
   then
-  	echo "$EFIPATH found."
     $(exportSettings "BOOTTYPE" "EFI")
   else
   	$(exportSettings "BOOTTYPE" "BIOS")
@@ -114,8 +113,13 @@ firstInstallStage(){
   chrootTime
 
   USERNAME=$(retrieveSettings "USERNAME")
+
+  #Go into chroot
   arch-chroot /mnt ./home/$USERNAME/arch-build.sh
+
+  #Go into chroot as new user
   arch-chroot /mnt su $USERNAME ./home/$USERNAME/arch-build.sh
+
   reboot
 }
 
@@ -479,6 +483,16 @@ makeYay(){
   cd yay
   makepkg -sri --noconfirm
   cd /home/$USERNAME
+}
+
+#TODO
+setupRDPServer(){
+  yay -S --noconfirm xrdp-git xorgxrdp-git xorg-xinit xterm
+  sudo sytemctl enable xrdp xrdp-sesman
+  cp /etc/X11/xinit/xinitrc ~/.xinitrc
+  echo "allowed_users=anybody" > /etc/X11/Xwrapper.config
+  echo "exec dbus-run-session -- startkde" >> ~/.xinitrc
+  sudo sed -i "s/use_vsock=true/use_vsock=false/" /etc/pacman.conf
 }
 
 installBaseGoodies(){
