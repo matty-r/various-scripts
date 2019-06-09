@@ -31,7 +31,7 @@ generateSettings(){
   $(exportSettings "SCRIPTROOT" "$SCRIPTROOT")
   $(exportSettings "NETINT" $(ip link | grep "BROADCAST,MULTICAST,UP,LOWER_UP" | grep -oP '(?<=: ).*(?=: )') )
   EFIPATH="/sys/firmware/efi/efivars"
-  if [ -f "$EFIPATH" ]
+  if [ -d "$EFIPATH" ]
   then
   	echo "$EFIPATH found."
     $(exportSettings "BOOTTYPE" "EFI")
@@ -70,107 +70,107 @@ driver(){
   INSTALLSTAGE=$(cat "$SCRIPTROOT/installer.cfg")
   case $INSTALLSTAGE in
     "FIRST"|"")
-      echo "FIRST INSTALL STAGE" > /dev/stderr
+      echo "FIRST INSTALL STAGE"
       firstInstallStage
       ;;
     "SECOND")
-      echo "SECOND INSTALL STAGE" > /dev/stderr
+      echo "SECOND INSTALL STAGE"
       secondInstallStage
       ;;
     "THIRD")
-      echo "THIRD INSTALL STAGE" > /dev/stderr
+      echo "THIRD INSTALL STAGE"
       thirdInstallStage
       ;;
     "FOURTH")
-      echo "LAST INSTALL STAGE"  > /dev/stderr
+      echo "LAST INSTALL STAGE"
       fourthInstallStage
       ;;
     esac
 }
 
 firstInstallStage(){
-  echo "1. Generate Settings" > /dev/stderr
+  echo "1. Generate Settings"
   sleep 2
   generateSettings
 
-  echo "2. System Clock" > /dev/stderr
+  echo "2. System Clock"
   sleep 2
   systemClock
 
-  echo "3. Partition Disks" > /dev/stderr
+  echo "3. Partition Disks"
   sleep 2
   partDisks
 
-  echo "4. Format Partitions" > /dev/stderr
+  echo "4. Format Partitions"
   sleep 2
   formatParts
 
-  echo "5. Mount partitions" > /dev/stderr
+  echo "5. Mount partitions"
   sleep 2
   mountParts
 
-  echo "6. Install base packages" > /dev/stderr
+  echo "6. Install base packages"
   sleep 2
   installBase
 
-  echo "7. Making the FSTAB" > /dev/stderr
+  echo "7. Making the FSTAB"
   sleep 2
   makeFstab
 
-  echo "8. Setup chroot." > /dev/stderr
+  echo "8. Setup chroot."
   sleep 2
   chrootTime
 
   USERNAME=$(retrieveSettings "USERNAME")
   arch-chroot /mnt ./home/$USERNAME/arch-build.sh
+  arch-chroot /mnt su $USERNAME ./home/$USERNAME/arch-build.sh
   reboot
 }
 
 secondInstallStage(){
-  echo "10. chroot: Generate Settings" > /dev/stderr
+  echo "10. chroot: Generate Settings"
   sleep 2
   generateSettings
 
-  echo "11. chroot: Set Time" > /dev/stderr
+  echo "11. chroot: Set Time"
   sleep 2
   setTime
 
-  echo "12. chroot: Generate locales" > /dev/stderr
+  echo "12. chroot: Generate locales"
   sleep 2
   genLocales
 
-  echo "13. chroot: Apply HostName" > /dev/stderr
+  echo "13. chroot: Apply HostName"
   sleep 2
   applyHostname
 
-  echo "14. chroot: Add hosts file entries" > /dev/stderr
+  echo "14. chroot: Add hosts file entries"
   sleep 2
   addHosts
 
-  echo "15. chroot: Generate mkinitcpio" > /dev/stderr
+  echo "15. chroot: Generate mkinitcpio"
   sleep 2
   genInit
 
-  echo "16. chroot: Set root password" > /dev/stderr
+  echo "16. chroot: Set root password"
   sleep 2
   rootPassword
 
-  echo "17. chroot: Getting ready to boot" > /dev/stderr
+  echo "17. chroot: Getting ready to boot"
   sleep 2
   readyForBoot
 
-  echo "18. chroot: Fix network on boot" > /dev/stderr
+  echo "18. chroot: Fix network on boot"
   sleep 2
   enableNetworkBoot
 
-  echo "19. chroot: Create new user" > /dev/stderr
+  echo "19. chroot: Create new user"
   sleep 2
   createUser
 
   thirdInstallStage
 
-  echo "Rebooting. Re-run on boot. Login as new user"
-  sleep 10
+  #echo "Rebooting. Re-run on boot. Login as new user"
   exit
 }
 
@@ -178,37 +178,37 @@ thirdInstallStage(){
   INSTALLTYPE=$(retrieveSettings "INSTALLTYPE")
   case $INSTALLTYPE in
     "PHYS")
-        echo "20. install graphics stuff" > /dev/stderr
+        echo "20. install graphics stuff"
         sleep 2
         installGraphics
       ;;
     "QEMU")
-        echo "20. Setting up as QEMU Guest" > /dev/stderr
+        echo "20. Setting up as QEMU Guest"
         sleep 2
         setupAsQemuGuest
       ;;
     "VBOX")
-        echo "20. Setting up as VirtualBox Guest" > /dev/stderr
+        echo "20. Setting up as VirtualBox Guest"
         sleep 2
         setupAsVBoxGuest
       ;;
     "HYPERV")
-       echo "20. Setting up as Hyper-V Guest" > /dev/stderr
+       echo "20. Setting up as Hyper-V Guest"
        sleep 2
        setupAsHyperGuest
   esac
 }
 
 fourthInstallStage(){
-  echo "21. : Generate Settings" > /dev/stderr
+  echo "21. : Generate Settings"
   sleep 2
   generateSettings
 
-  echo "22. Install Desktop Environment" > /dev/stderr
+  echo "22. Install Desktop Environment"
   sleep 2
   installDesktopBase
 
-  echo "23. Install yay - AUR package manager" > /dev/stderr
+  echo "23. Install yay - AUR package manager"
   sleep 2
   makeYay
 
@@ -226,14 +226,13 @@ fourthInstallStage(){
 
   echo "Script done. You're good to go after reboot."
   sleep 10
-  sudo reboot
 }
 
 exportSettings(){
   SCRIPTPATH=$( readlink -m $( type -p $0 ))
   SCRIPTROOT=${SCRIPTPATH%/*}
 
-  echo "Exporting $1=$2" > /dev/stderr
+  echo "Exporting $1=$2" 1>&2
   EXPORTPARAM="$1=$2"
   ## write all settings to a file on new root
   echo -e "$EXPORTPARAM" >> "$SCRIPTROOT/installsettings.cfg"
@@ -268,10 +267,10 @@ partDisks(){
   if [[ $BOOTTYPE = "EFI" ]]; then
     case $BOOTMODE in
       "LEAVE"|"FORMAT")
-        echo "Leaving the boot partition..." > /dev/stderr
+        echo "Leaving the boot partition..."
         ;;
       "CREATE")
-        echo "Boot partition will be created. Whole disk will be destroyed!" > /dev/stderr
+        echo "Boot partition will be created. Whole disk will be destroyed!"
         DEVICE=$(echo $BOOTPART | sed 's/[0-9]//g')
         parted -s $DEVICE -- mklabel gpt \
               mkpart primary fat32 0% 256MiB
@@ -281,7 +280,7 @@ partDisks(){
 
     case $ROOTMODE in
       "LEAVE"|"FORMAT")
-        echo "Leaving the root partition..." > /dev/stderr
+        echo "Leaving the root partition..."
         ;;
       "CREATE")
         DEVICE=$(echo $ROOTPART | sed 's/[0-9]//g')
@@ -290,12 +289,12 @@ partDisks(){
           if [ $BOOTDEVICE = $ROOTDEVICE ]; then
             parted -s $DEVICE -- mkpart primary ext4 256MiB 100%
           else
-            echo "Root partition will be created. Whole disk will be destroyed!" > /dev/stderr
+            echo "Root partition will be created. Whole disk will be destroyed!"
             parted -s $DEVICE -- mklabel gpt \
                   mkpart primary ext4 0% 100%
           fi
         else
-          echo "Root partition will be created. Whole disk will be destroyed!" > /dev/stderr
+          echo "Root partition will be created. Whole disk will be destroyed!"
           parted -s $DEVICE -- mklabel mbr \
                 mkpart primary ext4 0% 100% \
                 set 1 boot on
@@ -503,10 +502,12 @@ installDesktopBase(){
 
 ###### make yay
 makeYay(){
+  USERNAME=$(retrieveSettings "USERNAME")
+  cd /home/$USERNAME
   git clone https://aur.archlinux.org/yay.git
-  cd ~/yay
+  cd yay
   makepkg -sri --noconfirm
-  cd ~
+  cd /home/$USERNAME
 }
 
 installBaseGoodies(){
