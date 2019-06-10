@@ -2,25 +2,40 @@
 # Version 1
 # Arch Linux INSTALL SCRIPT
 
+# User Variables. Change These
+INSTALLTYPE="QEMU"  ## "PHYS" for install on physical hardware. "VBOX" for install as VirtualBox Guest. "QEMU" for install as QEMU/ProxMox Guest.
+USERNAME="matt"
+HOSTNAME="arch-temp"
+DESKTOP="XFCE" ## "KDE" for Plasma, "XFCE" for XFCE, "GTK" for Gnome.
+BOOTPART="/dev/sda1"
+BOOTMODE="CREATE" # CREATE WILL DESTROY THE DISK, FORMAT WILL JUST FORMAT THE PARTITION, LEAVE WILL DO NOTHING
+ROOTPART="/dev/sda2"
+ROOTMODE="CREATE" # CREATE WILL DESTROY THE DISK, FORMAT WILL JUST FORMAT THE PARTITION, LEAVE WILL DO NOTHING
+
+# Script Variables. DO NOT CHANGE THESE
+SCRIPTPATH=$( readlink -m $( type -p $0 ))
+SCRIPTROOT=${SCRIPTPATH%/*}
+BOOTDEVICE=""
+ROOTDEVICE=""
+EFIPATH="/sys/firmware/efi/efivars" # Read-only
+BOOTTYPE=""
+NETINT=""
+CPUTYPE=""
+GPUTYPE=""
+INSTALLSTAGE=""
+
 generateSettings(){
-  # DO NOT EDIT THESE
-  SCRIPTPATH=$( readlink -m $( type -p $0 ))
-  SCRIPTROOT=${SCRIPTPATH%/*}
   # create settings file
   echo "" > "$SCRIPTROOT/installsettings.cfg"
 
-  ########### MODIFY THESE ONES \/\/\/\/\/\/\/\/ ##################
-  $(exportSettings "INSTALLTYPE" "HYPERV") ## << CHANGE. "PHYS" for install on physical hardware. "VBOX" for install as VirtualBox Guest. "QEMU" for install as QEMU/ProxMox Guest.
-  $(exportSettings "USERNAME" "matt")  ## << CHANGE
-  $(exportSettings "HOSTNAME" "arch-temp") ## << CHANGE
-  $(exportSettings "DESKTOP" "XFCE") ## << CHANGE. "KDE" for Plasma, "XFCE" for XFCE, "GTK" for Gnome.
-  BOOTPART="/dev/sda1"  ## << CHANGE BOOT PARTITION
+  $(exportSettings "INSTALLTYPE" $INSTALLTYPE)
+  $(exportSettings "USERNAME" $USERNAME)
+  $(exportSettings "HOSTNAME" $HOSTNAME)
+  $(exportSettings "DESKTOP" $DESKTOP)
   $(exportSettings "BOOTPART" $BOOTPART)
-  $(exportSettings "BOOTMODE" "CREATE") # << CREATE WILL DESTROY THE DISK, FORMAT WILL JUST FORMAT THE PARTITION, LEAVE WILL DO NOTHING
-  ROOTPART="/dev/sda2"  ## << CHANGE ROOT PARTITION
+  $(exportSettings "BOOTMODE" $BOOTMODE)
   $(exportSettings "ROOTPART" $ROOTPART)
-  $(exportSettings "ROOTMODE" "CREATE") # << CREATE WILL DESTROY THE DISK, FORMAT WILL JUST FORMAT THE PARTITION, LEAVE WILL DO NOTHING
-  ########### MODIFY THESE ONES ^^^^^^^^^^^^^^^^
+  $(exportSettings "ROOTMODE" $ROOTMODE)
 
   # DO NOT EDIT THESE
   BOOTDEVICE=$(echo $BOOTPART | cut -f3,3 -d'/' | sed 's/[0-9]//g')
@@ -29,14 +44,16 @@ generateSettings(){
   $(exportSettings "ROOTDEVICE" $ROOTDEVICE)
   $(exportSettings "SCRIPTPATH" "$SCRIPTPATH")
   $(exportSettings "SCRIPTROOT" "$SCRIPTROOT")
-  $(exportSettings "NETINT" $(ip link | grep "BROADCAST,MULTICAST,UP,LOWER_UP" | grep -oP '(?<=: ).*(?=: )') )
-  EFIPATH="/sys/firmware/efi/efivars"
+  NETINT=$(ip link | grep "BROADCAST,MULTICAST,UP,LOWER_UP" | grep -oP '(?<=: ).*(?=: )')
+  $(exportSettings "NETINT" $NETINT)
   if [ -d "$EFIPATH" ]
   then
-    $(exportSettings "BOOTTYPE" "EFI")
+    BOOTTYPE="EFI"
   else
-  	$(exportSettings "BOOTTYPE" "BIOS")
+    BOOTTYPE="BIOS"
   fi
+
+  $(exportSettings "BOOTTYPE" $BOOTTYPE)
 
   #set comparison to ignore case temporarily
   shopt -s nocasematch
@@ -63,9 +80,6 @@ generateSettings(){
 
 
 driver(){
-  SCRIPTPATH=$( readlink -m $( type -p $0 ))
-  SCRIPTROOT=${SCRIPTPATH%/*}
-
   INSTALLSTAGE=$(cat "$SCRIPTROOT/installer.cfg")
   case $INSTALLSTAGE in
     "FIRST"|"")
@@ -111,8 +125,6 @@ firstInstallStage(){
 
   echo "8. Setup chroot."
   chrootTime
-
-  USERNAME=$(retrieveSettings "USERNAME")
 
   #Go into chroot
   arch-chroot /mnt ./home/$USERNAME/arch-build.sh
@@ -161,7 +173,6 @@ secondInstallStage(){
 }
 
 thirdInstallStage(){
-  INSTALLTYPE=$(retrieveSettings "INSTALLTYPE")
   case $INSTALLTYPE in
     "PHYS")
         echo "20. install graphics stuff"
@@ -208,9 +219,6 @@ fourthInstallStage(){
 }
 
 exportSettings(){
-  SCRIPTPATH=$( readlink -m $( type -p $0 ))
-  SCRIPTROOT=${SCRIPTPATH%/*}
-
   echo "Exporting $1=$2" 1>&2
   EXPORTPARAM="$1=$2"
   ## write all settings to a file on new root
@@ -219,8 +227,6 @@ exportSettings(){
 
 #retrieveSettings 'SETTINGNAME'
 retrieveSettings(){
-  SCRIPTPATH=$( readlink -m $( type -p $0 ))
-  SCRIPTROOT=${SCRIPTPATH%/*}
   SETTINGSPATH="$SCRIPTROOT/installsettings.cfg"
 
   SETTINGNAME=$1
@@ -235,14 +241,6 @@ systemClock(){
 
 ### PARTITION DISKS
 partDisks(){
-  BOOTMODE=$(retrieveSettings 'BOOTMODE')
-  BOOTTYPE=$(retrieveSettings 'BOOTTYPE')
-  ROOTMODE=$(retrieveSettings 'ROOTMODE')
-  BOOTDEVICE=$(retrieveSettings 'BOOTDEVICE')
-  ROOTDEVICE=$(retrieveSettings 'ROOTDEVICE')
-  BOOTPART=$(retrieveSettings 'BOOTPART')
-  ROOTPART=$(retrieveSettings 'ROOTPART')
-
   if [[ $BOOTTYPE = "EFI" ]]; then
     case $BOOTMODE in
       "LEAVE"|"FORMAT")
@@ -285,11 +283,6 @@ partDisks(){
 ##FORMAT PARTITIONS
 
 formatParts(){
-  BOOTMODE=$(retrieveSettings 'BOOTMODE')
-  ROOTMODE=$(retrieveSettings 'ROOTMODE')
-  BOOTPART=$(retrieveSettings 'BOOTPART')
-  ROOTPART=$(retrieveSettings 'ROOTPART')
-
   if [ $BOOTMODE = "CREATE" ] || [ $BOOTMODE = "FORMAT" ]; then
     mkfs.fat -F32 $BOOTPART
   fi
@@ -301,9 +294,6 @@ formatParts(){
 
 ## Mount the file systems
 mountParts(){
-  BOOTPART=$(retrieveSettings 'BOOTPART')
-  rOOTPART=$(retrieveSettings 'ROOTPART')
-
   mount $ROOTPART /mnt
   mkdir /mnt/boot
   mount $BOOTPART /mnt/boot
@@ -343,11 +333,7 @@ makeFstab(){
 
 ### Change root into the new system:
 chrootTime(){
-  SCRIPTROOT=$(retrieveSettings 'SCRIPTROOT')
-
   echo "SECOND" > $SCRIPTROOT/installer.cfg
-  USERNAME=$(retrieveSettings 'USERNAME')
-  SCRIPTPATH=$(retrieveSettings 'SCRIPTPATH')
 
   mkdir /mnt/home/$USERNAME
   cp $SCRIPTROOT/installer.cfg /mnt/home/$USERNAME
@@ -371,14 +357,11 @@ genLocales(){
 
 ### Create the hostname file:
 applyHostname(){
-  HOSTNAME=$(retrieveSettings 'HOSTNAME')
   echo "$HOSTNAME" >> /etc/hostname
 }
 
 ### ADD HOSTS ENTRIES
 addHosts(){
-  HOSTNAME=$(retrieveSettings 'HOSTNAME')
-
   echo "127.0.0.1     localhost" >> /etc/hosts
   echo "::1       localhost" >> /etc/hosts
   echo "127.0.1.1     $HOSTNAME.mydomain      $HOSTNAME" >> /etc/hosts
@@ -404,9 +387,7 @@ readyForBoot(){
 }
 
 fixRefind(){
-  ROOTPART=$(retrieveSettings 'ROOTPART')
   ROOTUUID=$(blkid | grep $ROOTPART | grep -oP '(?<= UUID=").*(?=" TYPE)')
-  CPUTYPE=$(retrieveSettings 'CPUTYPE')
 
 cat <<EOF > /boot/refind_linux.conf
 "Boot with standard options"  "root=UUID=$ROOTUUID rw add_efi_memmap initrd=$CPUTYPE-ucode.img initrd=initramfs-linux.img"
@@ -416,13 +397,11 @@ EOF
 }
 
 enableNetworkBoot(){
-  NETINT=$(retrieveSettings 'NETINT')
   sudo systemctl enable dhcpcd@$NETINT.service
 }
 
 ####### add a user add to wheel group
 createUser(){
-  USERNAME=$(retrieveSettings 'USERNAME')
   useradd -m $USERNAME
   gpasswd -a $USERNAME wheel
   ####### change user password
@@ -436,7 +415,6 @@ createUser(){
   echo "THIRD" > /home/$USERNAME/installer.cfg
 
   ##SET OWNERSHIP OF SCRIPT FILES TO BE RUN AFTER REBOOT
-  SCRIPTROOT=$(retrieveSettings 'SCRIPTROOT')
   chown $USERNAME:$USERNAME $SCRIPTROOT --recursive
 }
 
@@ -450,8 +428,6 @@ enableMultilibPackages(){
 
 ######################################## Install nvidia stuff
 installGraphics(){
-  SCRIPTROOT=$(retrieveSettings 'SCRIPTROOT')
-  GPUTYPE=$(retrieveSettings 'GPUTYPE')
   enableMultilibPackages
 
   case $GPUTYPE in
@@ -466,7 +442,6 @@ installGraphics(){
 
 ######################################## Install DE
 installDesktopBase(){
-  DESKTOP=$(retrieveSettings 'DESKTOP')
   case $DESKTOP in
     "KDE" )
       sudo pacman -S --noconfirm plasma kcalc konsole spectacle dolphin dolphin-plugins filelight kate kwalletmanager kdeconnect kdf kdialog kfind
@@ -485,8 +460,6 @@ installDesktopBase(){
 
 ###### make yay
 makeYay(){
-  USERNAME=$(retrieveSettings "USERNAME")
-
   cd /home/$USERNAME
   git clone https://aur.archlinux.org/yay.git
   cd yay
@@ -496,28 +469,26 @@ makeYay(){
 
 #TODO
 setupRDPServer(){
-  USERNAME=$(retrieveSettings "USERNAME")
-  DESKTOP=$(retrieveSettings "DESKTOP")
   SESHNAME=""
-  yay -S --noconfirm xrdp-git xorgxrdp-git xorg-xinit xterm
-  sudo sytemctl enable xrdp xrdp-sesman
+
+  yay -S --noconfirm xrdp-git xorgxrdp-devel-git xorg-xinit xterm
+  sudo systemctl enable xrdp xrdp-sesman
   #cp /etc/X11/xinit/xinitrc ~/.xinitrc
-  echo "allowed_users=anybody" > /etc/X11/Xwrapper.config
+  echo "allowed_users=anybody" | sudo tee /etc/X11/Xwrapper.config
   case $DESKTOP in
-    "KDE" ) $SESHNAME = "startkde"
+    "KDE" ) SESHNAME="startkde"
       ;;
-    "XFCE" ) $SESHNAME = "startxfce4"
+    "XFCE" ) SESHNAME="startxfce4"
       ;;
-    "GTK" ) $SESHNAME = "gnome-session"
+    "GTK" ) SESHNAME="gnome-session"
       ;;
   esac
 
   echo "exec dbus-run-session -- $SESHNAME" > /home/$USERNAME/.xinitrc
-  sudo sed -i "s/use_vsock=true/use_vsock=false/" /etc/pacman.conf
+  sudo sed -i "s/use_vsock=true/use_vsock=false/" /etc/xrdp/xrdp.ini
 }
 
 installBaseGoodies(){
-  INSTALLTYPE=$(retrieveSettings "INSTALLTYPE")
   case $INSTALLTYPE in
     "PHYS" )
         yay -S --noconfirm fwupd virtualbox virtualbox-host-modules-arch virtualbox-guest-iso remmina freerdp-git protonmail-bridge gscan2pdf spotify libreoffice-fresh discord filezilla vlc obs-studio thunderbird gimp steam cups cups-pdf tesseract tesseract-data-eng pdftk-bin pulseaudio-bluetooth
@@ -540,8 +511,6 @@ installBaseGoodies(){
 }
 
 installDesktopGoodies(){
-  DESKTOP=$(retrieveSettings 'DESKTOP')
-
   case $DESKTOP in
     "KDE" )
       yay -S --noconfirm packagekit-qt5 adapta-kde kvantum-theme-adapta ffmpegthumbs ark gwenview print-manager adapta-gtk-theme
@@ -557,7 +526,6 @@ installDesktopGoodies(){
 
 ######################################## Setup install as a virtualbox guest
 setupAsVBoxGuest(){
-  SCRIPTROOT=$(retrieveSettings 'SCRIPTROOT')
   enableMultilibPackages
   sudo pacman -S --noconfirm virtualbox-guest-utils
   sudo systemctl enable vboxservice.service
@@ -566,7 +534,6 @@ setupAsVBoxGuest(){
 }
 
 setupAsQemuGuest(){
-  SCRIPTROOT=$(retrieveSettings 'SCRIPTROOT')
   enableMultilibPackages
 
   sudo sed -i "s/MODULES=()/MODULES=(virtio virtio_blk virtio_pci virtio_net)/" /etc/mkinitcpio.conf
@@ -577,7 +544,6 @@ setupAsQemuGuest(){
 }
 
 setupAsHyperGuest(){
-  SCRIPTROOT=$(retrieveSettings 'SCRIPTROOT')
   enableMultilibPackages
   sudo pacman -S --noconfirm xf86-video-fbdev
   echo "FOURTH" > $SCRIPTROOT/installer.cfg
@@ -585,8 +551,6 @@ setupAsHyperGuest(){
 
 ############ enable network manager/disable dhcpcd
 readyFinalBoot(){
-  SCRIPTROOT=$(retrieveSettings 'SCRIPTROOT')
-  NETINT=$(retrieveSettings 'NETINT')
   sudo systemctl disable dhcpcd@$NETINT.service
   sudo systemctl disable sshd
   sudo systemctl enable NetworkManager
