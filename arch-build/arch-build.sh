@@ -13,7 +13,7 @@ generateSettings(){
   $(exportSettings "INSTALLTYPE" "HYPERV") ## << CHANGE. "PHYS" for install on physical hardware. "VBOX" for install as VirtualBox Guest. "QEMU" for install as QEMU/ProxMox Guest.
   $(exportSettings "USERNAME" "matt")  ## << CHANGE
   $(exportSettings "HOSTNAME" "arch-temp") ## << CHANGE
-  $(exportSettings "DESKTOP" "XFCE") ## << CHANGE. "KDE" for Plasma, "XFCE" for XFCE.
+  $(exportSettings "DESKTOP" "XFCE") ## << CHANGE. "KDE" for Plasma, "XFCE" for XFCE, "GTK" for Gnome.
   BOOTPART="/dev/sda1"  ## << CHANGE BOOT PARTITION
   $(exportSettings "BOOTPART" $BOOTPART)
   $(exportSettings "BOOTMODE" "CREATE") # << CREATE WILL DESTROY THE DISK, FORMAT WILL JUST FORMAT THE PARTITION, LEAVE WILL DO NOTHING
@@ -476,6 +476,10 @@ installDesktopBase(){
       sudo pacman -S --noconfirm xfce4 xfce4-goodies lxdm
       sudo systemctl enable lxdm
       ;;
+    "GTK" )
+      sudo pacman -S --noconfirm gnome gnome-extra
+      sudo systemctl enable gdm
+      ;;
   esac
 }
 
@@ -503,6 +507,8 @@ setupRDPServer(){
     "KDE" ) $SESHNAME = "startkde"
       ;;
     "XFCE" ) $SESHNAME = "startxfce4"
+      ;;
+    "GTK" ) $SESHNAME = "gnome-session"
       ;;
   esac
 
@@ -542,6 +548,9 @@ installDesktopGoodies(){
     ;;
     "XFCE" )
       yay -S --noconfirm networkmanager network-manager-applet adapta-gtk-theme
+    ;;
+    "GTK" )
+      yay -S --noconfirm networkmanager adapta-gtk-theme
     ;;
   esac
 }
