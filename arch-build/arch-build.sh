@@ -197,10 +197,14 @@ fourthInstallStage(){
   echo "25. Install Desktop Goodies"
   installDesktopGoodies
 
-  echo "25. Readying final boot."
+  echo "26. Enable RDP"
+  setupRDPServer
+
+  echo "27. Readying final boot"
   readyFinalBoot
 
   echo "Script done. You're good to go after reboot."
+  sleep 5
 }
 
 exportSettings(){
@@ -478,6 +482,7 @@ installDesktopBase(){
 ###### make yay
 makeYay(){
   USERNAME=$(retrieveSettings "USERNAME")
+
   cd /home/$USERNAME
   git clone https://aur.archlinux.org/yay.git
   cd yay
@@ -487,11 +492,21 @@ makeYay(){
 
 #TODO
 setupRDPServer(){
+  USERNAME=$(retrieveSettings "USERNAME")
+  DESKTOP=$(retrieveSettings "DESKTOP")
+  SESHNAME=""
   yay -S --noconfirm xrdp-git xorgxrdp-git xorg-xinit xterm
   sudo sytemctl enable xrdp xrdp-sesman
-  cp /etc/X11/xinit/xinitrc ~/.xinitrc
+  #cp /etc/X11/xinit/xinitrc ~/.xinitrc
   echo "allowed_users=anybody" > /etc/X11/Xwrapper.config
-  echo "exec dbus-run-session -- startkde" >> ~/.xinitrc
+  case $DESKTOP in
+    "KDE" ) $SESHNAME = "startkde"
+      ;;
+    "XFCE" ) $SESHNAME = "startxfce4"
+      ;;
+  esac
+
+  echo "exec dbus-run-session -- $SESHNAME" > /home/$USERNAME/.xinitrc
   sudo sed -i "s/use_vsock=true/use_vsock=false/" /etc/pacman.conf
 }
 
@@ -520,7 +535,6 @@ installBaseGoodies(){
 
 installDesktopGoodies(){
   DESKTOP=$(retrieveSettings 'DESKTOP')
-  INSTALLTYPE=$(retrieveSettings "INSTALLTYPE")
 
   case $DESKTOP in
     "KDE" )
