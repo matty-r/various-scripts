@@ -6,7 +6,7 @@
 INSTALLTYPE="QEMU"  ## "PHYS" for install on physical hardware. "VBOX" for install as VirtualBox Guest. "QEMU" for install as QEMU/ProxMox Guest.
 USERNAME="matt"
 HOSTNAME="arch-temp"
-DESKTOP="XFCE" ## "KDE" for Plasma, "XFCE" for XFCE, "GTK" for Gnome.
+DESKTOP="BASE" ## "KDE" for Plasma, "XFCE" for XFCE, "GTK" for Gnome, "BASE" for no DE/WM
 BOOTPART="/dev/sda1"
 BOOTMODE="CREATE" # CREATE WILL DESTROY THE DISK, FORMAT WILL JUST FORMAT THE PARTITION, LEAVE WILL DO NOTHING
 ROOTPART="/dev/sda2"
@@ -473,7 +473,7 @@ setupRDPServer(){
 
   yay -S --noconfirm xrdp-git xorgxrdp-devel-git xorg-xinit xterm
   sudo systemctl enable xrdp xrdp-sesman
-  #cp /etc/X11/xinit/xinitrc ~/.xinitrc
+
   echo "allowed_users=anybody" | sudo tee /etc/X11/Xwrapper.config
   case $DESKTOP in
     "KDE" ) SESHNAME="startkde"
